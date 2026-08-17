@@ -2,9 +2,19 @@
 -- Core business-logic functions. These are the single source of truth for
 -- rules that must never disagree between "what the UI quoted" and
 -- "what actually got charged/decremented" under concurrent access.
+--
+-- SECURITY NOTE: Postgres grants EXECUTE on new functions to PUBLIC by
+-- default. Every SECURITY DEFINER function below that touches
+-- staff-only tables (inventory/stock_movements/coupons) explicitly
+-- REVOKEs that default and re-grants only to `authenticated`, AND
+-- validates that the calling user (auth.uid()) actually owns the
+-- order/redemption in question before doing anything — otherwise any
+-- logged-in customer could call it directly via RPC against someone
+-- else's order_id and manipulate their stock or coupon usage.
 
 -- ---------------------------------------------------------------------
--- Shipping: total cart weight + destination city -> price
+-- Shipping: total cart weight + destination city -> price. Read-only,
+-- safe to leave publicly callable (needed by anonymous cart pages too).
 -- ---------------------------------------------------------------------
 create or replace function public.calculate_shipping_cost(p_city_id uuid, p_total_weight_g int)
 returns table (rate numeric, weight_band_id uuid) as $$
@@ -23,13 +33,20 @@ $$ language plpgsql stable;
 -- ---------------------------------------------------------------------
 -- Inventory: atomic stock reservation at checkout start (prevents
 -- overselling under concurrent checkouts). Fails loudly if insufficient
--- stock rather than allowing a negative on-hand count.
+-- stock rather than allowing a negative on-hand count. Only callable for
+-- an order the caller owns.
 -- ---------------------------------------------------------------------
 create or replace function public.reserve_stock(p_book_id uuid, p_quantity int, p_order_id uuid)
 returns void as $$
 declare
   v_available int;
+  v_order_owner uuid;
 begin
+  select customer_id into v_order_owner from public.orders where id = p_order_id;
+  if v_order_owner is distinct from auth.uid() then
+    raise exception 'Not authorized for this order';
+  end if;
+
   select (quantity_on_hand - quantity_reserved) into v_available
   from public.inventory where book_id = p_book_id
   for update;
@@ -49,9 +66,16 @@ begin
   insert into public.stock_movements (book_id, movement_type, quantity_delta, reference_order_id, note)
     values (p_book_id, 'reservation', -p_quantity, p_order_id, 'Reserved at checkout');
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer set search_path = public;
 
--- Convert a reservation into a real sale (on order confirmation).
+revoke execute on function public.reserve_stock(uuid, int, uuid) from public;
+grant execute on function public.reserve_stock(uuid, int, uuid) to authenticated;
+
+-- Convert a reservation into a real sale. Not directly grantable to
+-- customers (they go through confirm_cod_order() in 0005, which validates
+-- ownership then calls this as the same SECURITY DEFINER context); staff
+-- fulfil non-COD orders through the admin order-management flow, which
+-- also goes through a dedicated function rather than calling this raw.
 create or replace function public.commit_reserved_stock(p_book_id uuid, p_quantity int, p_order_id uuid)
 returns void as $$
 begin
@@ -64,12 +88,27 @@ begin
   insert into public.stock_movements (book_id, movement_type, quantity_delta, reference_order_id, note)
     values (p_book_id, 'sale', -p_quantity, p_order_id, 'Order confirmed');
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer set search_path = public;
 
--- Release a reservation (order cancelled/expired/payment failed).
+revoke execute on function public.commit_reserved_stock(uuid, int, uuid) from public;
+-- Intentionally no grant to `authenticated` here: this function has no
+-- ownership check of its own (it assumes the caller already validated
+-- it, as confirm_cod_order() does). It's callable by the function owner
+-- role (migrations/service role) and by other SECURITY DEFINER functions
+-- in this schema, which is all that should ever call it directly.
+
+-- Release a reservation (order cancelled/expired/payment failed). Same
+-- ownership-check pattern as reserve_stock().
 create or replace function public.release_reserved_stock(p_book_id uuid, p_quantity int, p_order_id uuid)
 returns void as $$
+declare
+  v_order_owner uuid;
 begin
+  select customer_id into v_order_owner from public.orders where id = p_order_id;
+  if v_order_owner is distinct from auth.uid() then
+    raise exception 'Not authorized for this order';
+  end if;
+
   update public.inventory
     set quantity_reserved = greatest(quantity_reserved - p_quantity, 0),
         updated_at = now()
@@ -78,10 +117,15 @@ begin
   insert into public.stock_movements (book_id, movement_type, quantity_delta, reference_order_id, note)
     values (p_book_id, 'release_reservation', p_quantity, p_order_id, 'Reservation released');
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer set search_path = public;
+
+revoke execute on function public.release_reserved_stock(uuid, int, uuid) from public;
+grant execute on function public.release_reserved_stock(uuid, int, uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
--- Coupons: validate + atomically increment usage counter
+-- Coupons: validate + atomically increment usage counter. Customer-callable,
+-- but only ever redeems for p_customer_id = auth.uid() — enforced below,
+-- not just trusted from the argument.
 -- ---------------------------------------------------------------------
 create or replace function public.validate_and_redeem_coupon(
   p_code citext, p_customer_id uuid, p_order_id uuid, p_order_subtotal numeric
@@ -90,7 +134,17 @@ declare
   v_coupon public.coupons%rowtype;
   v_customer_uses int;
   v_discount numeric;
+  v_order_owner uuid;
 begin
+  if p_customer_id is distinct from auth.uid() then
+    raise exception 'Not authorized';
+  end if;
+
+  select customer_id into v_order_owner from public.orders where id = p_order_id;
+  if v_order_owner is distinct from auth.uid() then
+    raise exception 'Not authorized for this order';
+  end if;
+
   select * into v_coupon from public.coupons where code = p_code for update;
 
   if not found or not v_coupon.is_active then
@@ -127,10 +181,56 @@ begin
 
   return v_discount;
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer set search_path = public;
+
+revoke execute on function public.validate_and_redeem_coupon(citext, uuid, uuid, numeric) from public;
+grant execute on function public.validate_and_redeem_coupon(citext, uuid, uuid, numeric) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Order confirmation (Cash on Delivery): customer-owned order,
+-- pending_payment -> confirmed, committing reserved stock. Safe to expose
+-- broadly because it fully validates ownership/state itself.
+-- ---------------------------------------------------------------------
+create or replace function public.confirm_cod_order(p_order_id uuid)
+returns void as $$
+declare
+  v_order public.orders%rowtype;
+  v_item record;
+begin
+  select * into v_order from public.orders where id = p_order_id;
+
+  if not found then
+    raise exception 'Order not found';
+  end if;
+  if v_order.customer_id is distinct from auth.uid() then
+    raise exception 'Not authorized for this order';
+  end if;
+  if v_order.payment_method <> 'cod' then
+    raise exception 'This function only confirms Cash on Delivery orders';
+  end if;
+  if v_order.status <> 'pending_payment' then
+    raise exception 'Order is not awaiting confirmation';
+  end if;
+
+  for v_item in select book_id, quantity from public.order_items where order_id = p_order_id loop
+    perform public.commit_reserved_stock(v_item.book_id, v_item.quantity, p_order_id);
+  end loop;
+
+  update public.orders set status = 'confirmed' where id = p_order_id;
+
+  insert into public.order_status_history (order_id, status, note)
+    values (p_order_id, 'confirmed', 'Order placed with Cash on Delivery');
+end;
+$$ language plpgsql security definer set search_path = public;
+
+revoke execute on function public.confirm_cod_order(uuid) from public;
+grant execute on function public.confirm_cod_order(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- Order numbering: human-friendly sequential number per year, e.g. SB-2027-000123
+-- Safe to leave publicly callable — it has no side effect beyond
+-- consuming a sequence value, and only authenticated users ever reach the
+-- checkout flow that calls it.
 -- ---------------------------------------------------------------------
 create sequence if not exists public.order_number_seq;
 
@@ -163,6 +263,7 @@ begin
     select table_name from information_schema.columns
     where table_schema = 'public' and column_name = 'updated_at'
   loop
+    execute format('drop trigger if exists set_updated_at on public.%I;', t);
     execute format(
       'create trigger set_updated_at before update on public.%I for each row execute function public.set_updated_at();',
       t

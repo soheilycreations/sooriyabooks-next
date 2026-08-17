@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 // Brand tokens reverse-engineered from the legacy site's XStore theme_mods
 // (docs/architecture.md §1): amber/orange accent, black/white base,
@@ -75,7 +76,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 };
 
 export default config;

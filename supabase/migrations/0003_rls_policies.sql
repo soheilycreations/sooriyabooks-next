@@ -133,7 +133,13 @@ create policy "orders_staff_update" on public.orders for update using (public.is
 create policy "order_items_owner_read" on public.order_items for select using (
   exists (select 1 from public.orders o where o.id = order_id and (o.customer_id = auth.uid() or public.is_staff()))
 );
-create policy "order_items_staff_write" on public.order_items for insert with check (public.is_staff() or true); -- created by checkout server action (service role)
+-- Customers may only insert line items into an order they own (their own
+-- checkout flow, right after creating the order row); staff can insert
+-- for any order (manual order creation/adjustment in the admin panel).
+create policy "order_items_owner_insert" on public.order_items for insert with check (
+  public.is_staff()
+  or exists (select 1 from public.orders o where o.id = order_id and o.customer_id = auth.uid())
+);
 create policy "order_status_history_owner_read" on public.order_status_history for select using (
   exists (select 1 from public.orders o where o.id = order_id and (o.customer_id = auth.uid() or public.is_staff()))
 );

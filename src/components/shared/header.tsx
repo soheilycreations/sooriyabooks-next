@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Heart, Search, ShoppingBag, User } from "lucide-react";
+import { Heart, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CartIconButton } from "@/components/shared/cart-icon-button";
 
 const NAV_LINKS = [
   { href: "/category/fiction", label: "Fiction" },
@@ -44,11 +45,7 @@ export function Header() {
               <User className="h-5 w-5" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Cart" asChild>
-            <Link href="/cart">
-              <ShoppingBag className="h-5 w-5" />
-            </Link>
-          </Button>
+          <CartIconButton />
         </div>
       </div>
     </header>
