@@ -255,7 +255,8 @@ async function main() {
     withCategory: 0,
     withoutCategory: 0,
     withSeoTitle: 0,
-    writeErrors: [],
+    writeErrors: [], // whole book failed to import
+    secondaryWarnings: [], // book imported, but a follow-up write (categories/inventory/image) failed
   };
   const seenSkus = new Map(); // sku -> [postId, ...]
   const seenSlugs = new Map(); // slug -> [postId, ...]
@@ -394,17 +395,29 @@ async function main() {
     }
 
     if (categoryIds.length > 0) {
-      await supabase.from("book_categories").delete().eq("book_id", book.id);
-      await supabase
+      const { error: catDeleteError } = await supabase.from("book_categories").delete().eq("book_id", book.id);
+      if (catDeleteError) {
+        stats.secondaryWarnings.push({ postId, title: post.post_title, step: "book_categories.delete", message: catDeleteError.message });
+      }
+      const { error: catInsertError } = await supabase
         .from("book_categories")
         .insert(categoryIds.map((ttId) => ({ book_id: book.id, category_id: categoryIdMap.get(ttId) })));
+      if (catInsertError) {
+        stats.secondaryWarnings.push({ postId, title: post.post_title, step: "book_categories.insert", message: catInsertError.message });
+      }
     }
 
-    await supabase.from("inventory").upsert(
+    const { error: inventoryError } = await supabase.from("inventory").upsert(
       stockTrackingEnabled
         ? { book_id: book.id, stock_tracking_enabled: true, quantity_on_hand: trackedQuantity }
         : { book_id: book.id, stock_tracking_enabled: false, untracked_available: untrackedAvailable },
     );
+    if (inventoryError) {
+      // The most consequential possible failure here: a book with no
+      // inventory row makes reserve_stock() raise an exception the moment
+      // any customer tries to add it to cart. Must never be silent.
+      stats.secondaryWarnings.push({ postId, title: post.post_title, step: "inventory.upsert", message: inventoryError.message });
+    }
 
     // Primary image: read from the local uploads backup and re-upload to
     // Supabase Storage (avoids depending on the live site, which was down
@@ -416,21 +429,33 @@ async function main() {
         const ext = path.extname(attachedFile) || ".jpg";
         const storagePath = `products/${book.id}${ext}`;
         const { error: uploadError } = await supabase.storage.from("media").upload(storagePath, fileBuffer, { upsert: true });
-        if (!uploadError) {
-          const { data: media } = await supabase
+        if (uploadError) {
+          stats.secondaryWarnings.push({ postId, title: post.post_title, step: "storage.upload", message: uploadError.message });
+        } else {
+          const { data: media, error: mediaError } = await supabase
             .from("media_assets")
             .insert({ kind: "image", storage_path: storagePath, alt_text: post.post_title })
             .select("id")
             .single();
-          if (media) {
+          if (mediaError) {
+            stats.secondaryWarnings.push({ postId, title: post.post_title, step: "media_assets.insert", message: mediaError.message });
+          } else if (media) {
             await supabase.from("book_images").delete().eq("book_id", book.id);
-            await supabase.from("book_images").insert({ book_id: book.id, media_id: media.id, is_primary: true, sort_order: 0 });
+            const { error: imgError } = await supabase
+              .from("book_images")
+              .insert({ book_id: book.id, media_id: media.id, is_primary: true, sort_order: 0 });
+            if (imgError) {
+              stats.secondaryWarnings.push({ postId, title: post.post_title, step: "book_images.insert", message: imgError.message });
+            }
           }
         }
-      } catch {
-        // Upload failed for a reason other than "file doesn't exist" (that
-        // case is already excluded via imageFoundLocally) — not fatal to
-        // the whole run.
+      } catch (err) {
+        stats.secondaryWarnings.push({
+          postId,
+          title: post.post_title,
+          step: "image_pipeline",
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
@@ -504,8 +529,15 @@ async function main() {
   }
 
   if (stats.writeErrors.length > 0) {
-    console.log(`\n--- Write errors (${stats.writeErrors.length}) ---`);
+    console.log(`\n--- Write errors: whole book failed to import (${stats.writeErrors.length}) ---`);
     for (const e of stats.writeErrors.slice(0, 20)) console.log(`  #${e.postId} "${e.title}": ${e.message}`);
+  }
+
+  if (stats.secondaryWarnings.length > 0) {
+    console.log(`\n--- Secondary write warnings: book imported but a follow-up write failed (${stats.secondaryWarnings.length}) ---`);
+    console.log(`  (inventory.upsert failures are the most important to check — that book would have no inventory row at all)`);
+    for (const w of stats.secondaryWarnings.slice(0, 30)) console.log(`  #${w.postId} "${w.title}" [${w.step}]: ${w.message}`);
+    if (stats.secondaryWarnings.length > 30) console.log(`  ...and ${stats.secondaryWarnings.length - 30} more`);
   }
 
   console.log(`\n${DRY_RUN ? "Dry run complete — nothing was written to Supabase, no credentials were used." : "Import complete."}`);
