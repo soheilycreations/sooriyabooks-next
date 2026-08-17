@@ -4,6 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBookBySlug } from "@/lib/catalog/queries";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { WishlistButton } from "@/components/storefront/wishlist-button";
+import { ReviewsSection } from "@/components/storefront/reviews-section";
+import { isInWishlist } from "@/lib/customers/wishlist-actions";
+import { getBookReviews } from "@/lib/customers/review-queries";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -47,6 +51,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
   const reserved = b.inventory?.quantity_reserved ?? 0;
   const available = onHand - reserved;
   const isOnSale = b.discount_price != null && Number(b.discount_price) < Number(b.selling_price);
+  const [inWishlist, reviews] = await Promise.all([isInWishlist(b.id), getBookReviews(b.id)]);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -113,18 +118,21 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
             <p className="mt-4 text-muted-foreground">{b.short_description}</p>
           )}
 
-          <div className="mt-6">
-            <AddToCartButton
-              book={{
-                bookId: b.id,
-                slug: b.slug,
-                title: b.title,
-                unitPrice: isOnSale ? Number(b.discount_price) : Number(b.selling_price),
-                weightGrams: b.weight_grams,
-                coverUrl,
-              }}
-              inStock={available > 0}
-            />
+          <div className="mt-6 flex gap-2">
+            <div className="flex-1">
+              <AddToCartButton
+                book={{
+                  bookId: b.id,
+                  slug: b.slug,
+                  title: b.title,
+                  unitPrice: isOnSale ? Number(b.discount_price) : Number(b.selling_price),
+                  weightGrams: b.weight_grams,
+                  coverUrl,
+                }}
+                inStock={available > 0}
+              />
+            </div>
+            <WishlistButton bookId={b.id} initialInWishlist={inWishlist} />
           </div>
 
           <dl className="mt-8 grid grid-cols-2 gap-y-2 border-t pt-6 text-sm">
@@ -172,6 +180,10 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
           <p className="mt-4 whitespace-pre-line text-muted-foreground">{b.description}</p>
         </div>
       )}
+
+      <div className="mt-16 max-w-3xl border-t pt-10">
+        <ReviewsSection bookId={b.id} reviews={reviews} />
+      </div>
     </div>
   );
 }

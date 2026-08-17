@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, FolderTree, Users, ShoppingCart, Ticket,
   Boxes, Star, Image as ImageIcon, Newspaper, Search, Settings,
-  Truck, CreditCard, BarChart3, ScrollText,
+  Truck, CreditCard, BarChart3, ScrollText, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ const NAV_SECTIONS = [
       { href: "/admin/customers", label: "Customers", icon: Users },
       { href: "/admin/coupons", label: "Coupons", icon: Ticket },
       { href: "/admin/reviews", label: "Reviews", icon: Star },
+      { href: "/admin/messages", label: "Messages", icon: Mail },
     ],
   },
   {
@@ -38,7 +39,7 @@ const NAV_SECTIONS = [
       { href: "/admin/media", label: "Media", icon: ImageIcon },
       { href: "/admin/blog", label: "Blog", icon: Newspaper },
       { href: "/admin/seo", label: "SEO", icon: Search },
-      { href: "/admin/homepage", label: "Homepage", icon: LayoutDashboard },
+      { href: "/admin/homepage", label: "Homepage Banners", icon: LayoutDashboard },
     ],
   },
   {

@@ -435,6 +435,33 @@ export type Database = {
           },
         ]
       }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_read: boolean
+          message: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_read?: boolean
+          message: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          name?: string
+        }
+        Relationships: []
+      }
       coupon_books: {
         Row: {
           book_id: string
@@ -593,6 +620,8 @@ export type Database = {
         Row: {
           author_id: string | null
           book_id: string | null
+          button_text: string | null
+          ends_at: string | null
           heading: string | null
           id: string
           image_media_id: string | null
@@ -601,11 +630,14 @@ export type Database = {
           publisher_id: string | null
           section_id: string
           sort_order: number
+          starts_at: string | null
           subheading: string | null
         }
         Insert: {
           author_id?: string | null
           book_id?: string | null
+          button_text?: string | null
+          ends_at?: string | null
           heading?: string | null
           id?: string
           image_media_id?: string | null
@@ -614,11 +646,14 @@ export type Database = {
           publisher_id?: string | null
           section_id: string
           sort_order?: number
+          starts_at?: string | null
           subheading?: string | null
         }
         Update: {
           author_id?: string | null
           book_id?: string | null
+          button_text?: string | null
+          ends_at?: string | null
           heading?: string | null
           id?: string
           image_media_id?: string | null
@@ -627,6 +662,7 @@ export type Database = {
           publisher_id?: string | null
           section_id?: string
           sort_order?: number
+          starts_at?: string | null
           subheading?: string | null
         }
         Relationships: [

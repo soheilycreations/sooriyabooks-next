@@ -1,33 +1,42 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/storefront/product-card";
+import { HeroSlider } from "@/components/storefront/hero-slider";
 import { getFeaturedBooks, getNewArrivals } from "@/lib/catalog/queries";
+import { getActiveHeroSlides } from "@/lib/content/queries";
 
-export const revalidate = 3600; // ISR: catalog changes invalidate via revalidateTag in Phase 3 admin actions
+export const revalidate = 3600; // ISR: catalog/homepage changes invalidate via revalidateTag in admin actions
 
 export default async function HomePage() {
-  const [featured, newArrivals] = await Promise.all([getFeaturedBooks(8), getNewArrivals(8)]);
+  const [featured, newArrivals, slides] = await Promise.all([
+    getFeaturedBooks(8),
+    getNewArrivals(8),
+    getActiveHeroSlides(),
+  ]);
 
   return (
     <div>
-      {/* Hero */}
-      <section className="border-b bg-secondary/30">
-        <div className="container flex flex-col items-start gap-6 py-20 md:py-28">
-          <p className="text-sm font-medium uppercase tracking-widest text-accent">
-            Since 1994 &middot; Sri Lanka
-          </p>
-          <h1 className="max-w-2xl font-heading text-4xl leading-tight md:text-6xl">
-            Buy Books to your Doorstep
-          </h1>
-          <p className="max-w-lg text-muted-foreground">
-            Sooriya Publishers is Sri Lanka&apos;s trusted publishing and distribution company —
-            island-wide delivery, curated titles, and a modern shopping experience.
-          </p>
-          <Button size="lg" variant="accent" asChild>
-            <Link href="/search">Shop the Collection</Link>
-          </Button>
-        </div>
-      </section>
+      {slides.length > 0 ? (
+        <HeroSlider slides={slides} />
+      ) : (
+        <section className="border-b bg-secondary/30">
+          <div className="container flex flex-col items-start gap-6 py-20 md:py-28">
+            <p className="text-sm font-medium uppercase tracking-widest text-accent">
+              Since 1994 &middot; Sri Lanka
+            </p>
+            <h1 className="max-w-2xl font-heading text-4xl leading-tight md:text-6xl">
+              Buy Books to your Doorstep
+            </h1>
+            <p className="max-w-lg text-muted-foreground">
+              Sooriya Publishers is Sri Lanka&apos;s trusted publishing and distribution company —
+              island-wide delivery, curated titles, and a modern shopping experience.
+            </p>
+            <Button size="lg" variant="accent" asChild>
+              <Link href="/search">Shop the Collection</Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
       {featured.length > 0 && (
         <section className="container py-16">

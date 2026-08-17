@@ -20,3 +20,15 @@ export function formatDate(date: string | Date) {
     day: "numeric",
   }).format(new Date(date));
 }
+
+/**
+ * Strips characters with special meaning in PostgREST's filter syntax
+ * (`,()*`) from user-supplied search input before it's interpolated into an
+ * `.or()`/`.ilike()` filter string — otherwise a crafted query could inject
+ * additional filter clauses (PostgREST filter injection, not classic SQL
+ * injection, but the same class of bug: never build a query filter by
+ * string-concatenating untrusted input).
+ */
+export function sanitizeSearchTerm(input: string): string {
+  return input.replace(/[,()*]/g, "").trim().slice(0, 100);
+}

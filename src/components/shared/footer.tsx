@@ -1,15 +1,16 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
-const FOOTER_COLUMNS = [
-  {
-    title: "Shop",
-    links: [
-      { href: "/category/fiction", label: "Fiction" },
-      { href: "/category/non-fiction", label: "Non-Fiction" },
-      { href: "/category/children", label: "Children" },
-      { href: "/search?featured=1", label: "Featured Books" },
-    ],
-  },
+async function getShopLinks() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("categories").select("name, slug").is("parent_id", null).order("sort_order").limit(3);
+  return [
+    ...(data ?? []).map((c) => ({ href: `/category/${c.slug}`, label: c.name })),
+    { href: "/search?featured=1", label: "Featured Books" },
+  ];
+}
+
+const FOOTER_COLUMNS_STATIC = [
   {
     title: "Customer Care",
     links: [
@@ -28,7 +29,10 @@ const FOOTER_COLUMNS = [
   },
 ];
 
-export function Footer() {
+export async function Footer() {
+  const shopLinks = await getShopLinks();
+  const footerColumns = [{ title: "Shop", links: shopLinks }, ...FOOTER_COLUMNS_STATIC];
+
   return (
     <footer className="mt-24 border-t bg-secondary/40">
       <div className="container grid gap-10 py-16 md:grid-cols-4">
@@ -39,7 +43,7 @@ export function Footer() {
             company since 1994.
           </p>
         </div>
-        {FOOTER_COLUMNS.map((col) => (
+        {footerColumns.map((col) => (
           <div key={col.title}>
             <p className="font-medium">{col.title}</p>
             <ul className="mt-3 space-y-2">

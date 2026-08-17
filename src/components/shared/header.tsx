@@ -2,16 +2,22 @@ import Link from "next/link";
 import { Heart, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CartIconButton } from "@/components/shared/cart-icon-button";
+import { createClient } from "@/lib/supabase/server";
 
-const NAV_LINKS = [
-  { href: "/category/fiction", label: "Fiction" },
-  { href: "/category/non-fiction", label: "Non-Fiction" },
-  { href: "/category/children", label: "Children" },
-  { href: "/category/academic", label: "Academic" },
-  { href: "/blog", label: "Blog" },
-];
+async function getTopNavCategories() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("name, slug")
+    .is("parent_id", null)
+    .order("sort_order")
+    .limit(6);
+  return data ?? [];
+}
 
-export function Header() {
+export async function Header() {
+  const categories = await getTopNavCategories();
+
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-20 items-center justify-between">
@@ -20,20 +26,25 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {NAV_LINKS.map((link) => (
+          {categories.map((cat) => (
             <Link
-              key={link.href}
-              href={link.href}
+              key={cat.slug}
+              href={`/category/${cat.slug}`}
               className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
             >
-              {link.label}
+              {cat.name}
             </Link>
           ))}
+          <Link href="/blog" className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground">
+            Blog
+          </Link>
         </nav>
 
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" aria-label="Search">
-            <Search className="h-5 w-5" />
+          <Button variant="ghost" size="icon" aria-label="Search" asChild>
+            <Link href="/search">
+              <Search className="h-5 w-5" />
+            </Link>
           </Button>
           <Button variant="ghost" size="icon" aria-label="Wishlist" asChild>
             <Link href="/account/wishlist">

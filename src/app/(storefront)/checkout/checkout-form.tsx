@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCart } from "@/lib/cart/cart-context";
 import { formatCurrency } from "@/lib/utils";
 import { createOrder } from "@/lib/orders/actions";
+import { initiateBankPayment } from "@/lib/payments/actions";
 import { quoteShippingAction } from "@/lib/shipping/actions";
 
 export function CheckoutForm() {
@@ -39,7 +41,7 @@ export function CheckoutForm() {
   if (!cityId) {
     return (
       <p className="text-muted-foreground">
-        No delivery city selected. <a href="/cart" className="text-accent hover:underline">Go back to your cart</a>.
+        No delivery city selected. <Link href="/cart" className="text-accent hover:underline">Go back to your cart</Link>.
       </p>
     );
   }
@@ -59,6 +61,21 @@ export function CheckoutForm() {
         return;
       }
       clear();
+
+      if (paymentMethod === "bank_ipg") {
+        const paymentResult = await initiateBankPayment(result.data.orderId);
+        if (paymentResult.ok) {
+          window.location.href = paymentResult.data.redirectUrl;
+          return;
+        }
+        // Order exists but the gateway couldn't be reached — let the
+        // customer see it and retry payment from there rather than losing
+        // the order entirely.
+        setError(`${paymentResult.error} — your order was saved, you can retry payment from your order page.`);
+        router.push(`/account/orders/${result.data.orderId}`);
+        return;
+      }
+
       router.push(`/account/orders/${result.data.orderId}?placed=1`);
     });
   }
