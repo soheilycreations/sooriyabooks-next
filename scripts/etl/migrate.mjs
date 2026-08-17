@@ -47,6 +47,7 @@ import { readFile, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { streamDumpRows } from "./dump-parser.mjs";
+import { mimeTypeForFile } from "./mime.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -423,39 +424,53 @@ async function main() {
     // Supabase Storage (avoids depending on the live site, which was down
     // with Cloudflare 522s at the time of this project).
     if (attachedFile && imageFoundLocally) {
-      try {
-        const localPath = path.resolve(UPLOADS_DIR, attachedFile);
-        const fileBuffer = await readFile(localPath);
-        const ext = path.extname(attachedFile) || ".jpg";
-        const storagePath = `products/${book.id}${ext}`;
-        const { error: uploadError } = await supabase.storage.from("media").upload(storagePath, fileBuffer, { upsert: true });
-        if (uploadError) {
-          stats.secondaryWarnings.push({ postId, title: post.post_title, step: "storage.upload", message: uploadError.message });
-        } else {
-          const { data: media, error: mediaError } = await supabase
-            .from("media_assets")
-            .insert({ kind: "image", storage_path: storagePath, alt_text: post.post_title })
-            .select("id")
-            .single();
-          if (mediaError) {
-            stats.secondaryWarnings.push({ postId, title: post.post_title, step: "media_assets.insert", message: mediaError.message });
-          } else if (media) {
-            await supabase.from("book_images").delete().eq("book_id", book.id);
-            const { error: imgError } = await supabase
-              .from("book_images")
-              .insert({ book_id: book.id, media_id: media.id, is_primary: true, sort_order: 0 });
-            if (imgError) {
-              stats.secondaryWarnings.push({ postId, title: post.post_title, step: "book_images.insert", message: imgError.message });
-            }
-          }
-        }
-      } catch (err) {
+      const mimeType = mimeTypeForFile(attachedFile);
+      if (!mimeType) {
         stats.secondaryWarnings.push({
           postId,
           title: post.post_title,
-          step: "image_pipeline",
-          message: err instanceof Error ? err.message : String(err),
+          step: "storage.upload",
+          message: `Unrecognized file type for "${attachedFile}" — skipped rather than uploaded with a guessed/wrong MIME type`,
         });
+      } else {
+        try {
+          const localPath = path.resolve(UPLOADS_DIR, attachedFile);
+          const fileBuffer = await readFile(localPath);
+          const ext = path.extname(attachedFile) || ".jpg";
+          const storagePath = `products/${book.id}${ext}`;
+          // contentType MUST be set explicitly — Supabase's storage client
+          // defaults a raw Buffer (no inherent MIME type) to
+          // 'text/plain;charset=UTF-8', which the bucket's MIME allow-list
+          // then rejects for every image. See scripts/etl/mime.mjs.
+          const { error: uploadError } = await supabase.storage.from("media").upload(storagePath, fileBuffer, { upsert: true, contentType: mimeType });
+          if (uploadError) {
+            stats.secondaryWarnings.push({ postId, title: post.post_title, step: "storage.upload", message: uploadError.message });
+          } else {
+            const { data: media, error: mediaError } = await supabase
+              .from("media_assets")
+              .insert({ kind: "image", storage_path: storagePath, alt_text: post.post_title })
+              .select("id")
+              .single();
+            if (mediaError) {
+              stats.secondaryWarnings.push({ postId, title: post.post_title, step: "media_assets.insert", message: mediaError.message });
+            } else if (media) {
+              await supabase.from("book_images").delete().eq("book_id", book.id);
+              const { error: imgError } = await supabase
+                .from("book_images")
+                .insert({ book_id: book.id, media_id: media.id, is_primary: true, sort_order: 0 });
+              if (imgError) {
+                stats.secondaryWarnings.push({ postId, title: post.post_title, step: "book_images.insert", message: imgError.message });
+              }
+            }
+          }
+        } catch (err) {
+          stats.secondaryWarnings.push({
+            postId,
+            title: post.post_title,
+            step: "image_pipeline",
+            message: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     }
 

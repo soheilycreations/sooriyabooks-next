@@ -13,7 +13,9 @@
     "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/types/database.ts",
     "migrate:analyze": "node scripts/etl/analyze.mjs",
     "migrate:dry-run": "node scripts/etl/migrate.mjs --dry-run",
-    "migrate:run": "node scripts/etl/migrate.mjs"
+    "migrate:run": "node scripts/etl/migrate.mjs",
+    "migrate:images:dry-run": "node scripts/etl/migrate-images.mjs --dry-run",
+    "migrate:images:run": "node scripts/etl/migrate-images.mjs"
   },
   "dependencies": {
     "next": "15.1.4",
