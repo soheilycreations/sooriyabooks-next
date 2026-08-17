@@ -116,16 +116,27 @@ export async function getSalesReport(range: DateRange): Promise<SalesReport> {
 
 export async function getInventorySummary() {
   const supabase = await createClient();
-  const { data } = await supabase.from("inventory").select("quantity_on_hand, quantity_reserved, low_stock_threshold, books ( title )");
+  const { data } = await supabase
+    .from("inventory")
+    .select("quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available, books ( title )");
 
+  // Untracked products (see supabase/migrations/0011-0012) are excluded
+  // from low/out-of-stock counts based on quantity_on_hand — that number
+  // isn't meaningful for them. An untracked-and-unavailable product is
+  // still counted as out of stock, since that's a real signal (the
+  // WordPress source explicitly marked it unavailable), just not a
+  // quantity-based one.
   const items = data ?? [];
-  const lowStock = items.filter((i) => i.quantity_on_hand - i.quantity_reserved <= i.low_stock_threshold && i.quantity_on_hand - i.quantity_reserved > 0);
-  const outOfStock = items.filter((i) => i.quantity_on_hand - i.quantity_reserved <= 0);
+  const tracked = items.filter((i) => i.stock_tracking_enabled);
+  const lowStock = tracked.filter((i) => i.quantity_on_hand - i.quantity_reserved <= i.low_stock_threshold && i.quantity_on_hand - i.quantity_reserved > 0);
+  const outOfStockTracked = tracked.filter((i) => i.quantity_on_hand - i.quantity_reserved <= 0);
+  const outOfStockUntracked = items.filter((i) => !i.stock_tracking_enabled && !i.untracked_available);
 
   return {
-    totalStockUnits: items.reduce((sum, i) => sum + i.quantity_on_hand, 0),
+    totalStockUnits: tracked.reduce((sum, i) => sum + i.quantity_on_hand, 0),
     lowStockCount: lowStock.length,
-    outOfStockCount: outOfStock.length,
+    outOfStockCount: outOfStockTracked.length + outOfStockUntracked.length,
+    untrackedCount: items.length - tracked.length,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lowStockItems: lowStock.slice(0, 10).map((i: any) => ({ title: i.books?.title ?? "Unknown", available: i.quantity_on_hand - i.quantity_reserved })),
   };

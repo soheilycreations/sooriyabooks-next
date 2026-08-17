@@ -69,9 +69,10 @@ export default async function AdminAnalyticsPage({
         <CardHeader><CardTitle>Inventory Health</CardTitle></CardHeader>
         <CardContent>
           <div className="mb-4 flex gap-4 text-sm">
-            <p>Total stock: <span className="font-medium">{inventory.totalStockUnits}</span></p>
+            <p>Total tracked stock: <span className="font-medium">{inventory.totalStockUnits}</span></p>
             <p>Low stock: <Badge variant="secondary">{inventory.lowStockCount}</Badge></p>
             <p>Out of stock: <Badge variant="destructive">{inventory.outOfStockCount}</Badge></p>
+            <p>Untracked products: <Badge variant="outline">{inventory.untrackedCount}</Badge></p>
           </div>
           {inventory.lowStockItems.length > 0 && (
             <div className="space-y-1 text-sm">

@@ -25,16 +25,25 @@
  * Parsing title suffixes is a reasonable follow-up enhancement if author/
  * publisher coverage after import turns out too sparse in practice.
  *
- * Read-only against the SQL dump; writes to Supabase via the service-role
- * key. Safe to re-run (upserts by slug/sku), but back up your Supabase
- * project first if you're re-running after manual admin-panel edits.
+ * --dry-run performs the FULL transform (parses the dump, resolves
+ * categories/authors/publishers, computes every field, checks local image
+ * files exist, detects duplicate SKUs/slugs) but makes ZERO Supabase calls
+ * and requires NO credentials — it never even constructs a Supabase client.
+ * Only a real (non-dry-run) invocation needs SUPABASE_SERVICE_ROLE_KEY.
+ *
+ * Legacy WooCommerce orders (post_type='shop_order'), coupons
+ * (post_type='shop_coupon'), and dynamic-pricing rules
+ * (post_type='wc_dynamic_pricing') are never read by this script at all —
+ * only 'product' and 'attachment' post types are scanned. The new platform
+ * has its own order/coupon systems; migrating legacy transactional data
+ * was an explicit non-goal in docs/migration-plan.md.
  *
  * Usage:
+ *   node scripts/etl/migrate.mjs --dry-run                       # no credentials needed
  *   SUPABASE_SERVICE_ROLE_KEY=... NEXT_PUBLIC_SUPABASE_URL=... \
- *     node scripts/etl/migrate.mjs [path-to-dump.sql] [--dry-run]
+ *     node scripts/etl/migrate.mjs                                # real import
  */
-import { createClient } from "@supabase/supabase-js";
-import { readFile } from "node:fs/promises";
+import { readFile, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { streamDumpRows } from "./dump-parser.mjs";
@@ -60,8 +69,11 @@ const DRY_RUN = process.argv.includes("--dry-run");
 
 // Legacy site's local uploads directory (for re-uploading images to
 // Supabase Storage without depending on the live site being reachable).
-const UPLOADS_DIR = process.env.WP_UPLOADS_DIR ||
-  "../../../u930615978.sooriyabooks-lk.20260731090448/domains/sooriyabooks.lk/public_html/wp-content/uploads";
+const DEFAULT_UPLOADS_DIR = path.resolve(
+  __dirname,
+  "../../../u930615978.sooriyabooks-lk.20260731090448/domains/sooriyabooks.lk/public_html/wp-content/uploads",
+);
+const UPLOADS_DIR = process.env.WP_UPLOADS_DIR || DEFAULT_UPLOADS_DIR;
 
 const WP_POSTS_COLS = [
   "ID", "post_author", "post_date", "post_date_gmt", "post_content", "post_title", "post_excerpt",
@@ -81,31 +93,47 @@ function rowToObject(cols, values) {
 }
 
 function slugify(text) {
-  return String(text)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || `item-${Math.random().toString(36).slice(2, 8)}`;
+  return (
+    String(text)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || `item-${Math.random().toString(36).slice(2, 8)}`
+  );
+}
+
+async function fileExists(p) {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function main() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running.");
-    process.exit(1);
+  let supabase = null;
+  if (!DRY_RUN) {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running a real (non-dry-run) migration.");
+      process.exit(1);
+    }
+    const { createClient } = await import("@supabase/supabase-js");
+    supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
   }
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 
-  console.log(`Reading dump: ${DUMP_PATH}${DRY_RUN ? " (dry run — no writes)" : ""}\n`);
+  console.log(`Reading dump: ${DUMP_PATH}`);
+  console.log(DRY_RUN ? "Mode: DRY RUN — no Supabase calls will be made, no credentials used.\n" : "Mode: REAL IMPORT — will write to Supabase.\n");
 
   // ---- Pass 1: terms, taxonomy, relationships, posts, postmeta ----------
   const terms = new Map(); // term_id -> { name, slug }
   const taxonomyByTTId = new Map(); // term_taxonomy_id -> { term_id, taxonomy, parent }
   const relationships = new Map(); // object_id -> [term_taxonomy_id, ...]
-  const posts = new Map(); // ID -> post row (product_type='product' only, kept for memory)
+  const posts = new Map(); // ID -> post row (product_type='product', status='publish', only)
   const postmetaByPostId = new Map(); // post_id -> { key: value }
-  const attachments = new Map(); // ID -> { guid, attachedFile }
+  const attachmentCount = { total: 0 };
 
   await streamDumpRows(
     DUMP_PATH,
@@ -126,8 +154,10 @@ async function main() {
         if (p.post_type === "product" && p.post_status === "publish") {
           posts.set(p.ID, p);
         } else if (p.post_type === "attachment") {
-          attachments.set(p.ID, { guid: p.guid, title: p.post_title });
+          attachmentCount.total++;
         }
+        // Legacy shop_order / shop_coupon / wc_dynamic_pricing posts are
+        // intentionally never captured here — see file header.
       } else if (table === "wp_postmeta") {
         const m = rowToObject(WP_POSTMETA_COLS, values);
         if (!postmetaByPostId.has(m.post_id)) postmetaByPostId.set(m.post_id, {});
@@ -136,7 +166,7 @@ async function main() {
     },
   );
 
-  console.log(`Found ${posts.size} published products, ${terms.size} terms, ${attachments.size} attachments.\n`);
+  console.log(`Found ${posts.size} published products, ${terms.size} terms, ${attachmentCount.total} attachments in the library.\n`);
 
   // ---- Categories / authors / publishers ---------------------------------
   const categoryTermIds = new Set();
@@ -148,23 +178,32 @@ async function main() {
     else if (tt.taxonomy === PUBLISHER_TAXONOMY) publisherTermIds.add(ttId);
   }
 
-  const categoryIdMap = new Map(); // wp term_taxonomy_id -> supabase category id
+  const categoryIdMap = new Map(); // wp term_taxonomy_id -> supabase category id (or dry-run placeholder)
   const authorIdMap = new Map();
   const publisherIdMap = new Map();
+  const termNameSlugCollisions = []; // duplicate slugs within one taxonomy — would silently collapse on upsert
 
-  async function upsertTaxonomyTerms(ttIds, table) {
+  async function resolveTaxonomyTerms(ttIds, table) {
     const idMap = new Map();
+    const seenSlugs = new Map(); // slug -> first term name that claimed it
     for (const ttId of ttIds) {
       const tt = taxonomyByTTId.get(ttId);
       const term = terms.get(tt.term_id);
       if (!term) continue;
+      const slug = term.slug || slugify(term.name);
+
+      if (seenSlugs.has(slug) && seenSlugs.get(slug) !== term.name) {
+        termNameSlugCollisions.push({ table, slug, names: [seenSlugs.get(slug), term.name] });
+      }
+      seenSlugs.set(slug, term.name);
+
       if (DRY_RUN) {
         idMap.set(ttId, `dry-run-${table}-${ttId}`);
         continue;
       }
       const { data, error } = await supabase
         .from(table)
-        .upsert({ name: term.name, slug: term.slug || slugify(term.name) }, { onConflict: "slug" })
+        .upsert({ name: term.name, slug }, { onConflict: "slug" })
         .select("id")
         .single();
       if (error) {
@@ -176,58 +215,153 @@ async function main() {
     return idMap;
   }
 
-  console.log("Importing categories...");
-  const catMap = await upsertTaxonomyTerms(categoryTermIds, "categories");
-  for (const [k, v] of catMap) categoryIdMap.set(k, v);
+  console.log("Resolving categories...");
+  for (const [k, v] of await resolveTaxonomyTerms(categoryTermIds, "categories")) categoryIdMap.set(k, v);
   console.log(`  -> ${categoryIdMap.size} categories\n`);
 
-  console.log(`Importing authors (taxonomy: ${AUTHOR_TAXONOMY})...`);
-  const authMap = await upsertTaxonomyTerms(authorTermIds, "authors");
-  for (const [k, v] of authMap) authorIdMap.set(k, v);
+  console.log(`Resolving authors (taxonomy: ${AUTHOR_TAXONOMY})...`);
+  for (const [k, v] of await resolveTaxonomyTerms(authorTermIds, "authors")) authorIdMap.set(k, v);
   console.log(`  -> ${authorIdMap.size} authors\n`);
 
-  console.log(`Importing publishers (taxonomy: ${PUBLISHER_TAXONOMY})...`);
-  const pubMap = await upsertTaxonomyTerms(publisherTermIds, "publishers");
-  for (const [k, v] of pubMap) publisherIdMap.set(k, v);
+  console.log(`Resolving publishers (taxonomy: ${PUBLISHER_TAXONOMY})...`);
+  for (const [k, v] of await resolveTaxonomyTerms(publisherTermIds, "publishers")) publisherIdMap.set(k, v);
   console.log(`  -> ${publisherIdMap.size} publishers\n`);
 
   // ---- Products ------------------------------------------------------------
-  console.log("Importing products...");
-  let imported = 0;
-  let skipped = 0;
+  console.log(`${DRY_RUN ? "Analyzing" : "Importing"} products...`);
+
+  const stats = {
+    totalCandidates: posts.size,
+    wouldImport: 0,
+    skippedNoPrice: 0,
+    withImage: 0,
+    missingImage: 0,
+    missingSku: 0,
+    missingPrice: 0,
+    onSale: 0,
+    missingOrInvalidWeight: 0,
+    // Stock-mode breakdown (see supabase/migrations/0011-0012 — a business
+    // decision, not a fallback: WooCommerce only writes a numeric _stock
+    // when "Manage stock?" is on; most of this catalog never had it on, so
+    // most products get NO fabricated quantity, only a tracked/untracked
+    // flag reflecting the real source data).
+    realNumericStock: 0,
+    untrackedInStock: 0,
+    untrackedOutOfStock: 0,
+    missingStockMetaEntirely: 0,
+    withAuthor: 0,
+    withPublisher: 0,
+    withoutAuthorOrPublisher: 0,
+    withCategory: 0,
+    withoutCategory: 0,
+    withSeoTitle: 0,
+    writeErrors: [],
+  };
+  const seenSkus = new Map(); // sku -> [postId, ...]
+  const seenSlugs = new Map(); // slug -> [postId, ...]
+  const sampleTransformed = [];
 
   for (const [postId, post] of posts) {
     const meta = postmetaByPostId.get(postId) || {};
+    const hasRealSku = !!meta._sku;
     const sku = meta._sku || `SB-${postId}`;
+    const slug = post.post_name || slugify(post.post_title);
+
+    const rawWeight = meta._weight != null ? parseFloat(meta._weight) : NaN;
+    const weightIsValid = Number.isFinite(rawWeight) && rawWeight > 0;
     // The store's woocommerce_weight_unit is 'g' (confirmed against the
     // actual dump, not assumed) — _weight is already in grams, no kg->g
-    // conversion needed. An earlier version of this script wrongly assumed
-    // kilograms and multiplied by 1000, which would have inflated every
-    // book's weight 1000x and broken the shipping weight-band calculation
-    // entirely. Re-verify this against your own site's Settings ->
-    // Products -> Measurements if you ever point this script at a
-    // different WooCommerce export.
-    const rawWeight = parseFloat(meta._weight || "0");
-    const weightGrams = Math.round(Number.isFinite(rawWeight) && rawWeight > 0 ? rawWeight : 100); // default 100g if missing/zero — never 0, shipping calc requires a positive weight
-    const sellingPrice = parseFloat(meta._regular_price || meta._price || "0") || 0;
+    // conversion applied here. See file header.
+    const weightGrams = weightIsValid ? Math.round(rawWeight) : 100; // 100g fallback — never 0, shipping calc requires a positive weight
+
+    const sellingPriceRaw = meta._regular_price || meta._price;
+    const sellingPrice = parseFloat(sellingPriceRaw || "0") || 0;
     const salePrice = meta._sale_price ? parseFloat(meta._sale_price) : null;
-    const stock = meta._stock != null ? parseInt(meta._stock, 10) : 0;
+    const isOnSale = salePrice != null && salePrice < sellingPrice;
+
+    // --- Stock mode: NEVER fabricate a quantity. See file header + stats comment above. ---
+    const stockRaw = meta._stock;
+    const stockStatus = meta._stock_status; // 'instock' | 'outofstock' | 'onbackorder' | undefined
+    const hasNumericStock = stockRaw != null && stockRaw !== "" && Number.isFinite(parseInt(stockRaw, 10));
+
+    let stockTrackingEnabled;
+    let trackedQuantity = null; // only meaningful when stockTrackingEnabled
+    let untrackedAvailable = null; // only meaningful when !stockTrackingEnabled
+
+    if (hasNumericStock) {
+      stockTrackingEnabled = true;
+      trackedQuantity = Math.max(parseInt(stockRaw, 10), 0);
+    } else {
+      stockTrackingEnabled = false;
+      // instock/onbackorder -> sellable; outofstock, or no status at all
+      // (no positive signal either way) -> unavailable. Conservative on
+      // the unknown case: never guess "sellable" without source evidence.
+      untrackedAvailable = stockStatus === "instock" || stockStatus === "onbackorder";
+    }
 
     const rels = relationships.get(postId) || [];
-    const categoryIds = rels.filter((ttId) => categoryIdMap.has(ttId)).map((ttId) => categoryIdMap.get(ttId));
+    const categoryIds = rels.filter((ttId) => categoryIdMap.has(ttId));
     const authorTTId = rels.find((ttId) => authorIdMap.has(ttId));
     const publisherTTId = rels.find((ttId) => publisherIdMap.has(ttId));
 
     const seoTitle = meta.rank_math_title || null;
     const seoDescription = meta.rank_math_description || null;
 
+    const thumbnailId = meta._thumbnail_id ? Number(meta._thumbnail_id) : null;
+    const attachedFile = thumbnailId != null ? postmetaByPostId.get(thumbnailId)?._wp_attached_file : null;
+    let imageFoundLocally = false;
+    if (attachedFile) {
+      const localPath = path.resolve(UPLOADS_DIR, attachedFile);
+      imageFoundLocally = await fileExists(localPath);
+    }
+
+    // --- stat tracking (always, dry-run or not) ---
+    if (!hasRealSku) stats.missingSku++;
+    if (sellingPrice <= 0) stats.missingPrice++;
+    if (isOnSale) stats.onSale++;
+    if (!weightIsValid) stats.missingOrInvalidWeight++;
+    if (stockRaw == null) stats.missingStockMetaEntirely++;
+    if (stockTrackingEnabled) stats.realNumericStock++;
+    else if (untrackedAvailable) stats.untrackedInStock++;
+    else stats.untrackedOutOfStock++;
+    if (attachedFile && imageFoundLocally) stats.withImage++;
+    else stats.missingImage++;
+    if (authorTTId) stats.withAuthor++;
+    if (publisherTTId) stats.withPublisher++;
+    if (!authorTTId && !publisherTTId) stats.withoutAuthorOrPublisher++;
+    if (categoryIds.length > 0) stats.withCategory++;
+    else stats.withoutCategory++;
+    if (seoTitle) stats.withSeoTitle++;
+
+    if (!seenSkus.has(sku)) seenSkus.set(sku, []);
+    seenSkus.get(sku).push(postId);
+    if (!seenSlugs.has(slug)) seenSlugs.set(slug, []);
+    seenSlugs.get(slug).push(postId);
+
     if (sellingPrice <= 0) {
-      skipped++;
+      stats.skippedNoPrice++;
       continue; // a product with no price isn't sellable — skip rather than import broken data
     }
 
+    if (sampleTransformed.length < 8) {
+      sampleTransformed.push({
+        id: postId,
+        title: post.post_title,
+        slug,
+        sku,
+        sellingPrice,
+        salePrice: isOnSale ? salePrice : null,
+        weightGrams,
+        stockMode: stockTrackingEnabled ? `tracked(${trackedQuantity})` : untrackedAvailable ? "untracked-in-stock" : "untracked-out-of-stock",
+        hasImage: !!attachedFile && imageFoundLocally,
+        hasAuthor: !!authorTTId,
+        hasPublisher: !!publisherTTId,
+        categoryCount: categoryIds.length,
+      });
+    }
+
     if (DRY_RUN) {
-      imported++;
+      stats.wouldImport++;
       continue;
     }
 
@@ -236,11 +370,11 @@ async function main() {
       .upsert(
         {
           title: post.post_title,
-          slug: post.post_name || slugify(post.post_title),
+          slug,
           sku,
           weight_grams: weightGrams,
           selling_price: sellingPrice,
-          discount_price: salePrice && salePrice < sellingPrice ? salePrice : null,
+          discount_price: isOnSale ? salePrice : null,
           description: post.post_content || null,
           short_description: post.post_excerpt || null,
           author_id: authorTTId ? authorIdMap.get(authorTTId) : null,
@@ -255,27 +389,29 @@ async function main() {
       .single();
 
     if (error) {
-      console.error(`  ! Failed to import "${post.post_title}":`, error.message);
-      skipped++;
+      stats.writeErrors.push({ postId, title: post.post_title, message: error.message });
       continue;
     }
 
     if (categoryIds.length > 0) {
       await supabase.from("book_categories").delete().eq("book_id", book.id);
-      await supabase.from("book_categories").insert(categoryIds.map((categoryId) => ({ book_id: book.id, category_id: categoryId })));
+      await supabase
+        .from("book_categories")
+        .insert(categoryIds.map((ttId) => ({ book_id: book.id, category_id: categoryIdMap.get(ttId) })));
     }
 
-    await supabase.from("inventory").upsert({ book_id: book.id, quantity_on_hand: Math.max(stock, 0) });
+    await supabase.from("inventory").upsert(
+      stockTrackingEnabled
+        ? { book_id: book.id, stock_tracking_enabled: true, quantity_on_hand: trackedQuantity }
+        : { book_id: book.id, stock_tracking_enabled: false, untracked_available: untrackedAvailable },
+    );
 
     // Primary image: read from the local uploads backup and re-upload to
     // Supabase Storage (avoids depending on the live site, which was down
     // with Cloudflare 522s at the time of this project).
-    const thumbnailId = meta._thumbnail_id ? Number(meta._thumbnail_id) : null;
-    const attachedFileMeta = thumbnailId != null ? postmetaByPostId.get(thumbnailId) : null;
-    const attachedFile = attachedFileMeta?._wp_attached_file;
-    if (attachedFile) {
+    if (attachedFile && imageFoundLocally) {
       try {
-        const localPath = path.resolve(__dirname, UPLOADS_DIR, attachedFile);
+        const localPath = path.resolve(UPLOADS_DIR, attachedFile);
         const fileBuffer = await readFile(localPath);
         const ext = path.extname(attachedFile) || ".jpg";
         const storagePath = `products/${book.id}${ext}`;
@@ -292,17 +428,87 @@ async function main() {
           }
         }
       } catch {
-        // Image file not found locally or upload failed — the product
-        // still imports without a cover; not fatal to the whole run.
+        // Upload failed for a reason other than "file doesn't exist" (that
+        // case is already excluded via imageFoundLocally) — not fatal to
+        // the whole run.
       }
     }
 
-    imported++;
-    if (imported % 200 === 0) console.log(`  ... ${imported} imported`);
+    stats.wouldImport++;
+    if (stats.wouldImport % 200 === 0) console.log(`  ... ${stats.wouldImport} imported`);
   }
 
-  console.log(`\nDone. Imported ${imported} products, skipped ${skipped} (no valid price or write error).`);
-  if (DRY_RUN) console.log("This was a dry run — nothing was written to Supabase.");
+  const duplicateSkus = [...seenSkus.entries()].filter(([, ids]) => ids.length > 1);
+  const duplicateSlugs = [...seenSlugs.entries()].filter(([, ids]) => ids.length > 1);
+
+  // ---- Report ---------------------------------------------------------------
+  console.log(`\n${"=".repeat(70)}`);
+  console.log(DRY_RUN ? "DRY RUN REPORT (nothing written to Supabase)" : "IMPORT COMPLETE");
+  console.log("=".repeat(70));
+
+  console.log(`\nProducts scanned (post_type='product', status='publish'): ${stats.totalCandidates}`);
+  console.log(`Would be imported (has a valid price):                    ${stats.wouldImport}`);
+  console.log(`Skipped — no valid price:                                 ${stats.skippedNoPrice}`);
+
+  console.log(`\nCategories resolved:  ${categoryIdMap.size}`);
+  console.log(`Authors resolved:     ${authorIdMap.size}  (taxonomy: ${AUTHOR_TAXONOMY})`);
+  console.log(`Publishers resolved:  ${publisherIdMap.size}  (taxonomy: ${PUBLISHER_TAXONOMY})`);
+
+  console.log(`\n--- Field coverage across all ${stats.totalCandidates} scanned products ---`);
+  console.log(`With image found locally:        ${stats.withImage}`);
+  console.log(`Missing image:                   ${stats.missingImage}`);
+  console.log(`Missing real SKU (would fallback to SB-<id>): ${stats.missingSku}`);
+  console.log(`Missing/zero price:               ${stats.missingPrice}`);
+  console.log(`Currently on sale:                ${stats.onSale}`);
+  console.log(`Missing/invalid weight (would fallback to 100g): ${stats.missingOrInvalidWeight}`);
+  console.log(`\n--- Stock mode breakdown (see supabase/migrations/0011-0012 — no fabricated quantities) ---`);
+  console.log(`Real numeric stock (tracked, real quantity imported): ${stats.realNumericStock}`);
+  console.log(`Untracked / in stock (sellable, no quantity):         ${stats.untrackedInStock}`);
+  console.log(`Untracked / out of stock (unavailable, no quantity):  ${stats.untrackedOutOfStock}`);
+  console.log(`(of which, missing _stock meta entirely):             ${stats.missingStockMetaEntirely}`);
+  console.log(`With author (${AUTHOR_TAXONOMY}):        ${stats.withAuthor}`);
+  console.log(`With publisher (${PUBLISHER_TAXONOMY}):           ${stats.withPublisher}`);
+  console.log(`With NEITHER author nor publisher: ${stats.withoutAuthorOrPublisher}`);
+  console.log(`With at least one category:       ${stats.withCategory}`);
+  console.log(`Without any category:             ${stats.withoutCategory}`);
+  console.log(`With Rank Math SEO title:          ${stats.withSeoTitle}`);
+
+  console.log(`\n--- Duplicate/conflict check ---`);
+  if (duplicateSkus.length === 0) {
+    console.log("No duplicate SKUs found among scanned products.");
+  } else {
+    console.log(`WARNING: ${duplicateSkus.length} SKU value(s) shared by more than one product (books.sku is UNIQUE — a real run would fail on the 2nd+ occurrence of each):`);
+    for (const [sku, ids] of duplicateSkus.slice(0, 15)) console.log(`  "${sku}"  <-  post IDs ${ids.join(", ")}`);
+    if (duplicateSkus.length > 15) console.log(`  ...and ${duplicateSkus.length - 15} more`);
+  }
+  if (duplicateSlugs.length === 0) {
+    console.log("No duplicate slugs found among scanned products.");
+  } else {
+    console.log(`WARNING: ${duplicateSlugs.length} slug value(s) shared by more than one product (upsert onConflict:'slug' means later rows would OVERWRITE earlier ones with the same slug — data loss risk):`);
+    for (const [slug, ids] of duplicateSlugs.slice(0, 15)) console.log(`  "${slug}"  <-  post IDs ${ids.join(", ")}`);
+    if (duplicateSlugs.length > 15) console.log(`  ...and ${duplicateSlugs.length - 15} more`);
+  }
+  if (termNameSlugCollisions.length > 0) {
+    console.log(`WARNING: ${termNameSlugCollisions.length} taxonomy term slug collision(s) (two differently-named terms sharing one slug — the 2nd would overwrite the 1st on upsert):`);
+    for (const c of termNameSlugCollisions.slice(0, 10)) console.log(`  [${c.table}] slug "${c.slug}": ${c.names.join(" vs ")}`);
+  }
+
+  console.log(`\n--- Sample transformed products (first 8 that would import) ---`);
+  for (const p of sampleTransformed) {
+    console.log(
+      `  #${p.id} "${p.title}"\n` +
+        `      slug=${p.slug} sku=${p.sku} price=${p.sellingPrice}${p.salePrice ? ` sale=${p.salePrice}` : ""} ` +
+        `weight=${p.weightGrams}g stock=${p.stockMode} image=${p.hasImage ? "yes" : "no"} ` +
+        `author=${p.hasAuthor ? "yes" : "no"} publisher=${p.hasPublisher ? "yes" : "no"} categories=${p.categoryCount}`,
+    );
+  }
+
+  if (stats.writeErrors.length > 0) {
+    console.log(`\n--- Write errors (${stats.writeErrors.length}) ---`);
+    for (const e of stats.writeErrors.slice(0, 20)) console.log(`  #${e.postId} "${e.title}": ${e.message}`);
+  }
+
+  console.log(`\n${DRY_RUN ? "Dry run complete — nothing was written to Supabase, no credentials were used." : "Import complete."}`);
 }
 
 main().catch((err) => {

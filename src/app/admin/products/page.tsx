@@ -19,7 +19,7 @@ export default async function AdminProductsPage({
 
   let query = supabase
     .from("books")
-    .select("id, title, sku, selling_price, discount_price, is_active, is_featured, authors ( name ), inventory ( quantity_on_hand, quantity_reserved )")
+    .select("id, title, sku, selling_price, discount_price, is_active, is_featured, authors ( name ), inventory ( quantity_on_hand, quantity_reserved, stock_tracking_enabled, untracked_available )")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -58,6 +58,7 @@ export default async function AdminProductsPage({
           <tbody>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(books ?? []).map((book: any) => {
+              const tracked = book.inventory?.stock_tracking_enabled ?? true;
               const stock = (book.inventory?.quantity_on_hand ?? 0) - (book.inventory?.quantity_reserved ?? 0);
               return (
                 <tr key={book.id} className="border-t">
@@ -75,12 +76,18 @@ export default async function AdminProductsPage({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {stock <= 0 ? (
-                      <Badge variant="destructive">Out of stock</Badge>
-                    ) : stock <= 5 ? (
-                      <Badge variant="secondary">{stock} low</Badge>
+                    {tracked ? (
+                      stock <= 0 ? (
+                        <Badge variant="destructive">Out of stock</Badge>
+                      ) : stock <= 5 ? (
+                        <Badge variant="secondary">{stock} low</Badge>
+                      ) : (
+                        stock
+                      )
+                    ) : book.inventory?.untracked_available ? (
+                      <Badge variant="outline">Untracked</Badge>
                     ) : (
-                      stock
+                      <Badge variant="destructive">Untracked — Out</Badge>
                     )}
                   </td>
                   <td className="px-4 py-3">

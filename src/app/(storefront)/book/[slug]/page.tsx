@@ -47,9 +47,17 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
     ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${primaryPath}`
     : null;
 
+  // Stock tracking is per-product (see supabase/migrations/0011-0012):
+  // most migrated WordPress products never had a real numeric stock count,
+  // only a sellable/unavailable flag — "untracked" mode reflects that
+  // honestly instead of showing a fabricated quantity or a false
+  // "Out of Stock" for products that are actually sellable.
+  const stockTrackingEnabled = b.inventory?.stock_tracking_enabled ?? true;
   const onHand = b.inventory?.quantity_on_hand ?? 0;
   const reserved = b.inventory?.quantity_reserved ?? 0;
-  const available = onHand - reserved;
+  const trackedAvailable = onHand - reserved;
+  const isAvailable = stockTrackingEnabled ? trackedAvailable > 0 : (b.inventory?.untracked_available ?? true);
+  const isLowStock = stockTrackingEnabled && trackedAvailable > 0 && trackedAvailable <= 5;
   const isOnSale = b.discount_price != null && Number(b.discount_price) < Number(b.selling_price);
   const [inWishlist, reviews] = await Promise.all([isInWishlist(b.id), getBookReviews(b.id)]);
 
@@ -64,7 +72,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
       "@type": "Offer",
       price: isOnSale ? b.discount_price : b.selling_price,
       priceCurrency: "LKR",
-      availability: available > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      availability: isAvailable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
   };
 
@@ -105,9 +113,9 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
             ) : (
               <span className="font-heading text-2xl">{formatCurrency(Number(b.selling_price))}</span>
             )}
-            {available <= 0 ? (
+            {!isAvailable ? (
               <Badge variant="destructive">Out of Stock</Badge>
-            ) : available <= 5 ? (
+            ) : isLowStock ? (
               <Badge variant="secondary">Low Stock</Badge>
             ) : (
               <Badge variant="success">In Stock</Badge>
@@ -129,7 +137,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
                   weightGrams: b.weight_grams,
                   coverUrl,
                 }}
-                inStock={available > 0}
+                inStock={isAvailable}
               />
             </div>
             <WishlistButton bookId={b.id} initialInWishlist={inWishlist} />

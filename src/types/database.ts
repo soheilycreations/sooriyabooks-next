@@ -742,6 +742,8 @@ export type Database = {
           low_stock_threshold: number
           quantity_on_hand: number
           quantity_reserved: number
+          stock_tracking_enabled: boolean
+          untracked_available: boolean
           updated_at: string
         }
         Insert: {
@@ -749,6 +751,8 @@ export type Database = {
           low_stock_threshold?: number
           quantity_on_hand?: number
           quantity_reserved?: number
+          stock_tracking_enabled?: boolean
+          untracked_available?: boolean
           updated_at?: string
         }
         Update: {
@@ -756,6 +760,8 @@ export type Database = {
           low_stock_threshold?: number
           quantity_on_hand?: number
           quantity_reserved?: number
+          stock_tracking_enabled?: boolean
+          untracked_available?: boolean
           updated_at?: string
         }
         Relationships: [

@@ -87,7 +87,7 @@ export async function getBookBySlug(slug: string) {
     .select(
       `*, authors ( id, name, slug ), publishers ( id, name, slug ),
        book_images ( id, is_primary, sort_order, media_assets ( storage_path, alt_text ) ),
-       inventory ( quantity_on_hand, quantity_reserved )`,
+       inventory ( quantity_on_hand, quantity_reserved, stock_tracking_enabled, untracked_available )`,
     )
     .eq("slug", slug)
     .eq("is_active", true)
