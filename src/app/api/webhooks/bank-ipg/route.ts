@@ -12,14 +12,24 @@ import { getPaymentProvider } from "@/lib/payments/registry";
  */
 export async function POST(request: NextRequest) {
   const signature = request.headers.get("x-ipg-signature"); // TODO: confirm the real header name from the bank's docs
-  const payload = await request.json();
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
   const provider = getPaymentProvider("bank_ipg");
   let result;
   try {
     result = await provider.handleWebhook(payload, signature);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Webhook processing failed" }, { status: 400 });
+    // Log the real error server-side for debugging, but never echo internal
+    // error details (config state, stack traces) back in the response to
+    // an unauthenticated caller.
+    console.error("Bank IPG webhook processing failed:", err);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 400 });
   }
 
   if (!result.providerReference) {

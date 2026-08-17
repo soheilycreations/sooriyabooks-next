@@ -2,7 +2,11 @@
 -- Additional RLS policies discovered while building the admin panel.
 -- (audit_logs had a read policy but no write policy — staff mutations
 -- logged via src/lib/admin/audit.ts would otherwise be silently blocked.)
+--
+-- Idempotent: every policy is dropped first if it exists, so this file is
+-- safe to re-run against a project that already has some or all of it applied.
 
+drop policy if exists "audit_logs_staff_write" on public.audit_logs;
 create policy "audit_logs_staff_write" on public.audit_logs for insert with check (public.is_staff());
 
 -- Customers need to be listed/searched in the admin Customers screen.
@@ -24,14 +28,18 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('media', 'media', true, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
 on conflict (id) do nothing;
 
+drop policy if exists "media_bucket_public_read" on storage.objects;
 create policy "media_bucket_public_read" on storage.objects
   for select using (bucket_id = 'media');
 
+drop policy if exists "media_bucket_staff_insert" on storage.objects;
 create policy "media_bucket_staff_insert" on storage.objects
   for insert with check (bucket_id = 'media' and public.is_staff());
 
+drop policy if exists "media_bucket_staff_update" on storage.objects;
 create policy "media_bucket_staff_update" on storage.objects
   for update using (bucket_id = 'media' and public.is_staff());
 
+drop policy if exists "media_bucket_staff_delete" on storage.objects;
 create policy "media_bucket_staff_delete" on storage.objects
   for delete using (bucket_id = 'media' and public.is_staff());

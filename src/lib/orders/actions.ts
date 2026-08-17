@@ -154,7 +154,21 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ 
       await supabase.rpc("mark_order_failed", { p_order_id: order.id, p_note: "Coupon could not be applied" });
       return { ok: false, error: couponError?.message || "This coupon could not be applied" };
     }
-    await supabase.rpc("apply_order_coupon_discount", { p_order_id: order.id, p_discount: Number(discount) });
+    const { error: applyError } = await supabase.rpc("apply_order_coupon_discount", {
+      p_order_id: order.id,
+      p_discount: Number(discount),
+    });
+    if (applyError) {
+      // validate_and_redeem_coupon() already recorded the redemption at
+      // this point (usage_count incremented, coupon_redemptions row
+      // inserted) — failing the whole order here would let the customer
+      // re-redeem a single-use coupon on retry. Log for investigation and
+      // proceed with the order at full price rather than double-charge or
+      // double-redeem; this path should be effectively unreachable since
+      // validate_and_redeem_coupon() already clamps the discount to a
+      // valid range, but never fail silently if it somehow does happen.
+      console.error(`apply_order_coupon_discount failed for order ${order.id}:`, applyError.message);
+    }
   }
 
   // 6. Reserve stock per line item. If any line fails partway through, the
@@ -194,6 +208,17 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ 
     })),
   );
   if (itemsError) {
+    // Stock was already reserved in step 6 — release it, or it would stay
+    // locked as "reserved" forever against an order that never got its
+    // line items recorded.
+    for (const reserved of reservedSoFar) {
+      await supabase.rpc("release_reserved_stock", {
+        p_book_id: reserved.bookId,
+        p_quantity: reserved.quantity,
+        p_order_id: order.id,
+      });
+    }
+    await supabase.rpc("mark_order_failed", { p_order_id: order.id, p_note: "Could not save order items" });
     return { ok: false, error: "Could not save order items" };
   }
 

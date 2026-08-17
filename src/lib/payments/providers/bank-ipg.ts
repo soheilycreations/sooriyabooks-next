@@ -92,7 +92,14 @@ export const bankIpgProvider: PaymentProvider = {
     // createIntent's signing convention above — adjust to match their spec).
     const { signature: _ignored, ...unsigned } = body;
     const expectedSignature = signPayload(unsigned, secret);
-    const isValid = crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature));
+    const providedBuffer = Buffer.from(signatureHeader);
+    const expectedBuffer = Buffer.from(expectedSignature);
+
+    // timingSafeEqual throws (rather than returning false) if the two
+    // buffers differ in length — a malformed or wrong-length signature
+    // header must never crash the check, only fail it.
+    const isValid =
+      providedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 
     if (!isValid) {
       return { success: false, providerReference: "", amount: 0, rawResponse: payload, errorMessage: "Invalid signature" };

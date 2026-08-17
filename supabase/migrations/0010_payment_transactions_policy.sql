@@ -5,7 +5,11 @@
 -- the gateway. Webhook confirmations bypass RLS entirely via the
 -- service-role client (src/app/api/webhooks/bank-ipg), so this policy only
 -- needs to cover the customer-initiated "pending" row.
+--
+-- Idempotent: policies are dropped first if they exist; the table uses
+-- CREATE TABLE IF NOT EXISTS. Safe to re-run.
 
+drop policy if exists "payment_transactions_owner_insert" on public.payment_transactions;
 create policy "payment_transactions_owner_insert" on public.payment_transactions for insert with check (
   exists (select 1 from public.orders o where o.id = order_id and o.customer_id = auth.uid())
 );
@@ -23,6 +27,12 @@ create table if not exists public.contact_messages (
 );
 
 alter table public.contact_messages enable row level security;
+
+drop policy if exists "contact_messages_public_insert" on public.contact_messages;
 create policy "contact_messages_public_insert" on public.contact_messages for insert with check (true);
+
+drop policy if exists "contact_messages_staff_read" on public.contact_messages;
 create policy "contact_messages_staff_read" on public.contact_messages for select using (public.is_staff());
+
+drop policy if exists "contact_messages_staff_update" on public.contact_messages;
 create policy "contact_messages_staff_update" on public.contact_messages for update using (public.is_staff());
