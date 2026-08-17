@@ -2,11 +2,28 @@
 /**
  * WordPress -> SooriyaBooks V2 data migration.
  *
- * RUN scripts/etl/analyze.mjs FIRST and confirm AUTHOR_TAXONOMY /
- * PUBLISHER_TAXONOMY below actually match what's in the dump — this
- * script guesses the common WooCommerce convention (`pa_author` /
- * `pa_publisher` product attributes) but that must be verified, not
- * assumed, per docs/migration-plan.md.
+ * AUTHOR_TAXONOMY / PUBLISHER_TAXONOMY below were CONFIRMED against the
+ * real dump via scripts/etl/analyze.mjs, not guessed:
+ *   - The original guess (`pa_author`/`pa_publisher`, the common
+ *     WooCommerce-attribute convention) does not exist in this dump at all.
+ *   - Two look-alike author taxonomies exist (`book_author` / `book-author`,
+ *     562 terms each). Checked real product-linkage via
+ *     wp_term_relationships, not just term counts: `book-author` is
+ *     actually attached to 1,332 products vs. 884 for `book_author` — the
+ *     latter is a largely-unused duplicate.
+ *   - No taxonomy is literally named "publisher" — `brand` (1,625 products
+ *     linked) contains exactly publisher names ("Sooriya Publishers",
+ *     "Sarasavi Publishers", etc.) and is used as the publisher field here.
+ *
+ * KNOWN GAP: neither taxonomy covers the majority of the 4,822 products
+ * (1,332 and 1,625 out of 4,822 respectively) — most books have no
+ * author/publisher term at all. Sample titles suggest the real author name
+ * is often embedded in the free-text title instead (e.g. "Markes
+ * Sankathana - Ananda Amarasiri"). This script does NOT attempt to parse
+ * that out — a book with no taxonomy term simply imports with
+ * author_id/publisher_id left null rather than guessing from title text.
+ * Parsing title suffixes is a reasonable follow-up enhancement if author/
+ * publisher coverage after import turns out too sparse in practice.
  *
  * Read-only against the SQL dump; writes to Supabase via the service-role
  * key. Safe to re-run (upserts by slug/sku), but back up your Supabase
@@ -24,13 +41,21 @@ import { streamDumpRows } from "./dump-parser.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const AUTHOR_TAXONOMY = "pa_author"; // TODO: confirm via analyze.mjs
-const PUBLISHER_TAXONOMY = "pa_publisher"; // TODO: confirm via analyze.mjs
+const AUTHOR_TAXONOMY = "book-author"; // confirmed via analyze.mjs — see comment above
+const PUBLISHER_TAXONOMY = "brand"; // confirmed via analyze.mjs — see comment above
+
+// Resolved against this script's own location (__dirname), NOT
+// process.cwd() — see the identical comment in analyze.mjs. `pnpm
+// migrate:run`/`migrate:dry-run` execute with cwd at the package root,
+// one level shallower than __dirname, so a bare relative default here
+// would land one directory too high.
+const DEFAULT_DUMP_PATH = path.resolve(
+  __dirname,
+  "../../../u930615978_FX4fE.sooriyabooks-lk.20260731090448.sql/u930615978_FX4fE.sql",
+);
 
 const DUMP_PATH =
-  process.argv.find((a, i) => i >= 2 && !a.startsWith("--")) ||
-  process.env.WP_DUMP_PATH ||
-  "../../../u930615978_FX4fE.sooriyabooks-lk.20260731090448.sql/u930615978_FX4fE.sql";
+  process.argv.find((a, i) => i >= 2 && !a.startsWith("--")) || process.env.WP_DUMP_PATH || DEFAULT_DUMP_PATH;
 const DRY_RUN = process.argv.includes("--dry-run");
 
 // Legacy site's local uploads directory (for re-uploading images to
@@ -174,8 +199,16 @@ async function main() {
   for (const [postId, post] of posts) {
     const meta = postmetaByPostId.get(postId) || {};
     const sku = meta._sku || `SB-${postId}`;
-    const weightKg = parseFloat(meta._weight || "0");
-    const weightGrams = Math.round((Number.isFinite(weightKg) ? weightKg : 0) * 1000) || 100; // default 100g if missing — never 0, shipping calc requires a positive weight
+    // The store's woocommerce_weight_unit is 'g' (confirmed against the
+    // actual dump, not assumed) — _weight is already in grams, no kg->g
+    // conversion needed. An earlier version of this script wrongly assumed
+    // kilograms and multiplied by 1000, which would have inflated every
+    // book's weight 1000x and broken the shipping weight-band calculation
+    // entirely. Re-verify this against your own site's Settings ->
+    // Products -> Measurements if you ever point this script at a
+    // different WooCommerce export.
+    const rawWeight = parseFloat(meta._weight || "0");
+    const weightGrams = Math.round(Number.isFinite(rawWeight) && rawWeight > 0 ? rawWeight : 100); // default 100g if missing/zero — never 0, shipping calc requires a positive weight
     const sellingPrice = parseFloat(meta._regular_price || meta._price || "0") || 0;
     const salePrice = meta._sale_price ? parseFloat(meta._sale_price) : null;
     const stock = meta._stock != null ? parseInt(meta._stock, 10) : 0;
