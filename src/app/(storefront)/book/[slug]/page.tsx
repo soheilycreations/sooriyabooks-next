@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBookBySlug } from "@/lib/catalog/queries";
+import { ProductGallery } from "@/components/storefront/product-gallery";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { WishlistButton } from "@/components/storefront/wishlist-button";
 import { ReviewsSection } from "@/components/storefront/reviews-section";
@@ -42,10 +42,15 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
   const sorted = [...images].sort(
     (a, c) => Number(c.is_primary) - Number(a.is_primary) || a.sort_order - c.sort_order,
   );
-  const primaryPath = sorted[0]?.media_assets?.storage_path;
-  const coverUrl = primaryPath
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${primaryPath}`
-    : null;
+  // Previously only sorted[0] (the cover) was ever used, silently
+  // discarding every other uploaded image — this is the fix: pass the
+  // full set through to a real gallery instead.
+  const galleryImages = sorted
+    .filter((img) => img.media_assets?.storage_path)
+    .map((img) => ({
+      url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${img.media_assets!.storage_path}`,
+      alt: img.media_assets?.alt_text || b.title,
+    }));
 
   // Stock tracking is per-product (see supabase/migrations/0011-0012):
   // most migrated WordPress products never had a real numeric stock count,
@@ -81,15 +86,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <div className="grid gap-10 md:grid-cols-2">
-        <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
-          {coverUrl ? (
-            <Image src={coverUrl} alt={b.title} fill sizes="50vw" className="object-cover" priority />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              No cover available
-            </div>
-          )}
-        </div>
+        <ProductGallery images={galleryImages} title={b.title} />
 
         <div>
           {b.authors && (
@@ -135,7 +132,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
                   title: b.title,
                   unitPrice: isOnSale ? Number(b.discount_price) : Number(b.selling_price),
                   weightGrams: b.weight_grams,
-                  coverUrl,
+                  coverUrl: galleryImages[0]?.url ?? null,
                 }}
                 inStock={isAvailable}
               />
