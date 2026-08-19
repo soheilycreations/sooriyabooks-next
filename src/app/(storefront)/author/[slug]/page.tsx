@@ -50,7 +50,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ slug: s
   const photoUrl = author.photo_url;
 
   return (
-    <div className="container py-12">
+    <div className="container py-12 md:py-16">
       <div className="mb-10 flex items-center gap-6">
         {photoUrl && (
           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-muted">
@@ -58,8 +58,11 @@ export default async function AuthorPage({ params }: { params: Promise<{ slug: s
           </div>
         )}
         <div>
-          <h1 className="font-heading text-3xl">{author.name}</h1>
+          <h1 className="font-heading text-3xl leading-tight md:text-4xl md:leading-tight">{author.name}</h1>
           {author.bio && <p className="mt-2 max-w-2xl text-muted-foreground">{author.bio}</p>}
+          <p className="mt-2 text-sm text-muted-foreground">
+            {books.length} {books.length === 1 ? "book" : "books"}
+          </p>
         </div>
       </div>
 

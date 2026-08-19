@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormAlert } from "@/components/shared/form-alert";
 import { submitContactMessage } from "@/lib/content/contact-actions";
 
 export function ContactForm() {
@@ -45,7 +46,7 @@ export function ContactForm() {
           onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
         />
       </div>
-      {status && <p className={status.ok ? "text-sm text-emerald-600" : "text-sm text-destructive"}>{status.message}</p>}
+      {status && <FormAlert tone={status.ok ? "success" : "error"}>{status.message}</FormAlert>}
       <Button type="submit" disabled={isPending}>
         {isPending ? "Sending..." : "Send Message"}
       </Button>

@@ -12,22 +12,23 @@ export default async function ProfilePage() {
 
   return (
     <div>
-      <h1 className="mb-6 font-heading text-2xl">Profile</h1>
-      <dl className="max-w-sm space-y-3 text-sm">
+      <h1 className="font-heading text-2xl leading-tight">Profile</h1>
+
+      <dl className="mt-6 max-w-sm space-y-4 rounded-lg border p-4 text-sm">
         <div>
           <dt className="text-muted-foreground">Full name</dt>
-          <dd>{profile?.full_name || "—"}</dd>
+          <dd className="mt-0.5 font-medium">{profile?.full_name || "—"}</dd>
         </div>
-        <div>
+        <div className="border-t pt-4">
           <dt className="text-muted-foreground">Email</dt>
-          <dd>{user?.email}</dd>
+          <dd className="mt-0.5 font-medium">{user?.email}</dd>
         </div>
-        <div>
+        <div className="border-t pt-4">
           <dt className="text-muted-foreground">Phone</dt>
-          <dd>{profile?.phone || "—"}</dd>
+          <dd className="mt-0.5 font-medium">{profile?.phone || "—"}</dd>
         </div>
       </dl>
-      <p className="mt-6 text-xs text-muted-foreground">
+      <p className="mt-4 text-xs text-muted-foreground">
         Profile editing and password change are coming in the next milestone.
       </p>
     </div>

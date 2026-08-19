@@ -3,11 +3,12 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormAlert } from "@/components/shared/form-alert";
 import { useCart } from "@/lib/cart/cart-context";
 import { formatCurrency, cn } from "@/lib/utils";
 import { createOrder } from "@/lib/orders/actions";
@@ -221,9 +222,8 @@ export function CheckoutForm() {
           </div>
         </div>
         {error && (
-          <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{error}</p>
+          <div className="mt-4">
+            <FormAlert>{error}</FormAlert>
           </div>
         )}
         <Button type="submit" variant="accent" size="lg" className="mt-6 w-full" disabled={isPending}>

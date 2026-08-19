@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormAlert } from "@/components/shared/form-alert";
 import { signUp } from "@/lib/auth/actions";
 
 export function RegisterForm() {
@@ -71,7 +72,7 @@ export function RegisterForm() {
           onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
         />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <FormAlert>{error}</FormAlert>}
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Creating account..." : "Create Account"}
       </Button>

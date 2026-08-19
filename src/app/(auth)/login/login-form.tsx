@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormAlert } from "@/components/shared/form-alert";
 import { signIn } from "@/lib/auth/actions";
 
 export function LoginForm() {
@@ -54,7 +55,7 @@ export function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <FormAlert>{error}</FormAlert>}
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Signing in..." : "Sign In"}
       </Button>
