@@ -3,12 +3,16 @@
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, X, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart/cart-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { getShippingOptionsAction, quoteShippingAction } from "@/lib/shipping/actions";
 import type { DistrictWithCities } from "@/lib/shipping/queries";
+import { CartWishlistToggle } from "./cart-wishlist-toggle";
+
+const selectClass =
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function CartView() {
   const { items, updateQuantity, removeItem, subtotal, totalWeightGrams, itemCount } = useCart();
@@ -44,10 +48,16 @@ export function CartView() {
 
   if (itemCount === 0) {
     return (
-      <div className="py-24 text-center">
-        <p className="text-muted-foreground">Your cart is empty.</p>
-        <Button className="mt-6" asChild>
-          <Link href="/">Continue Shopping</Link>
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+        <div>
+          <p className="font-heading text-xl">Your cart is empty</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Browse the collection and find something worth reading.
+          </p>
+        </div>
+        <Button variant="accent" className="mt-2" asChild>
+          <Link href="/search">Continue Shopping</Link>
         </Button>
       </div>
     );
@@ -58,44 +68,53 @@ export function CartView() {
       <div className="space-y-6 lg:col-span-2">
         {items.map((item) => (
           <div key={item.bookId} className="flex gap-4 border-b pb-6">
-            <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+            <Link
+              href={`/book/${item.slug}`}
+              className="relative aspect-[3/4] h-32 shrink-0 overflow-hidden rounded-lg bg-muted"
+            >
               {item.coverUrl && (
-                <Image src={item.coverUrl} alt={item.title} fill sizes="80px" className="object-cover" />
+                <Image src={item.coverUrl} alt={item.title} fill sizes="96px" className="object-cover" />
               )}
-            </div>
+            </Link>
             <div className="flex flex-1 flex-col justify-between">
               <div>
-                <Link href={`/book/${item.slug}`} className="font-medium hover:underline">
+                <Link href={`/book/${item.slug}`} className="font-heading text-base leading-snug hover:text-accent">
                   {item.title}
                 </Link>
                 <p className="mt-1 text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} each</p>
+                <div className="mt-2">
+                  <CartWishlistToggle bookId={item.bookId} />
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex h-9 items-center rounded-md border border-input">
+                  <button
+                    type="button"
+                    aria-label="Decrease quantity"
                     onClick={() => updateQuantity(item.bookId, item.quantity - 1)}
+                    className="flex h-full w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <span className="w-6 text-center text-sm">{item.quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="w-7 text-center text-sm font-medium" aria-live="polite">
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Increase quantity"
                     onClick={() => updateQuantity(item.bookId, item.quantity + 1)}
+                    className="flex h-full w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <Plus className="h-3 w-3" />
-                  </Button>
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-medium">{formatCurrency(item.unitPrice * item.quantity)}</span>
                   <button
-                    aria-label="Remove"
+                    type="button"
+                    aria-label={`Remove ${item.title} from cart`}
                     onClick={() => removeItem(item.bookId)}
-                    className="text-muted-foreground hover:text-destructive"
+                    className="text-muted-foreground transition-colors hover:text-destructive"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -106,13 +125,16 @@ export function CartView() {
         ))}
       </div>
 
-      <div className="rounded-lg border bg-card p-6">
+      <div className="h-fit rounded-lg border bg-card p-6">
         <h2 className="font-heading text-xl">Order Summary</h2>
 
         <div className="mt-4 space-y-2">
-          <label className="text-sm font-medium">District</label>
+          <label htmlFor="cart-district" className="text-sm font-medium">
+            District
+          </label>
           <select
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            id="cart-district"
+            className={selectClass}
             value={districtId}
             onChange={(e) => {
               setDistrictId(e.target.value);
@@ -129,9 +151,12 @@ export function CartView() {
 
           {selectedDistrict && (
             <>
-              <label className="text-sm font-medium">City</label>
+              <label htmlFor="cart-city" className="text-sm font-medium">
+                City
+              </label>
               <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                id="cart-city"
+                className={cn(selectClass, "border-accent")}
                 value={cityId}
                 onChange={(e) => setCityId(e.target.value)}
               >
@@ -148,7 +173,7 @@ export function CartView() {
 
         <div className="mt-6 space-y-2 border-t pt-4 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal ({itemCount} items)</span>
+            <span className="text-muted-foreground">Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between">
@@ -158,7 +183,7 @@ export function CartView() {
             </span>
           </div>
           {shippingError && <p className="text-xs text-destructive">{shippingError}</p>}
-          <div className="flex justify-between border-t pt-2 font-medium">
+          <div className="flex justify-between border-t pt-2 font-heading text-base">
             <span>Total</span>
             <span>{formatCurrency(subtotal + (shippingRate ?? 0))}</span>
           </div>
