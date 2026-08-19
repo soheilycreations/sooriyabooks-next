@@ -21,8 +21,8 @@ function resolveCoverUrl(storagePath: string | null): string | null {
   return `${base}/storage/v1/object/public/media/${storagePath}`;
 }
 
-/** Books for homepage/category grids. Returns [] gracefully if the catalog is empty (pre-migration). */
-const BOOK_CARD_SELECT_WITH_STOCK = `id, title, slug, selling_price, discount_price,
+/** Books for homepage/category/search grids. Returns [] gracefully if the catalog is empty (pre-migration). */
+export const BOOK_CARD_SELECT_WITH_STOCK = `id, title, slug, selling_price, discount_price, created_at,
        authors ( name ),
        book_images ( is_primary, sort_order, media_assets ( storage_path ) ),
        inventory ( quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available )`;
@@ -54,7 +54,18 @@ export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
   return (data ?? []).map(mapBookRowToCard);
 }
 
-export async function getBooksByCategory(categorySlug: string, limit = 24): Promise<BookCardData[]> {
+export type BookSort = "newest" | "price_asc" | "price_desc";
+
+export const SORT_COLUMN: Record<BookSort, { column: string; ascending: boolean }> = {
+  newest: { column: "created_at", ascending: false },
+  price_asc: { column: "selling_price", ascending: true },
+  price_desc: { column: "selling_price", ascending: false },
+};
+
+export async function getBooksByCategory(
+  categorySlug: string,
+  { limit = 24, sort = "newest" }: { limit?: number; sort?: BookSort } = {},
+): Promise<{ books: BookCardData[]; total: number }> {
   const supabase = await createClient();
   const { data: category } = await supabase
     .from("categories")
@@ -62,7 +73,40 @@ export async function getBooksByCategory(categorySlug: string, limit = 24): Prom
     .eq("slug", categorySlug)
     .maybeSingle();
 
-  if (!category) return [];
+  if (!category) return { books: [], total: 0 };
+
+  const { column, ascending } = SORT_COLUMN[sort];
+  const { data, count } = await supabase
+    .from("book_categories")
+    .select(
+      `books!inner (
+        id, title, slug, selling_price, discount_price, is_active, created_at,
+        authors ( name ),
+        book_images ( is_primary, sort_order, media_assets ( storage_path ) ),
+        inventory ( quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available )
+      )`,
+      { count: "exact" },
+    )
+    .eq("category_id", category.id)
+    .eq("books.is_active", true)
+    .order(column, { foreignTable: "books", ascending })
+    .limit(limit);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const books = (data ?? []).map((row: any) => mapBookRowToCard(row.books));
+  return { books, total: count ?? books.length };
+}
+
+/** Other active books sharing at least one category with this book — excludes the book itself. */
+export async function getRelatedBooks(bookId: string, limit = 4): Promise<BookCardData[]> {
+  const supabase = await createClient();
+  const { data: categoryLinks } = await supabase
+    .from("book_categories")
+    .select("category_id")
+    .eq("book_id", bookId);
+
+  const categoryIds = (categoryLinks ?? []).map((c) => c.category_id);
+  if (categoryIds.length === 0) return [];
 
   const { data } = await supabase
     .from("book_categories")
@@ -70,15 +114,22 @@ export async function getBooksByCategory(categorySlug: string, limit = 24): Prom
       `books!inner (
         id, title, slug, selling_price, discount_price, is_active,
         authors ( name ),
-        book_images ( is_primary, sort_order, media_assets ( storage_path ) )
+        book_images ( is_primary, sort_order, media_assets ( storage_path ) ),
+        inventory ( quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available )
       )`,
     )
-    .eq("category_id", category.id)
+    .in("category_id", categoryIds)
     .eq("books.is_active", true)
-    .limit(limit);
+    .neq("book_id", bookId)
+    .limit(limit * 3); // over-fetch — the same book can repeat across categories, dedupe below
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((row: any) => mapBookRowToCard(row.books));
+  const seen = new Map<string, any>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of (data ?? []) as any[]) {
+    if (row.books && !seen.has(row.books.id)) seen.set(row.books.id, row.books);
+  }
+  return Array.from(seen.values()).slice(0, limit).map(mapBookRowToCard);
 }
 
 export async function getBookBySlug(slug: string) {
@@ -167,7 +218,7 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapBookRowToCard(row: any): BookCardData {
+export function mapBookRowToCard(row: any): BookCardData {
   const images = (row.book_images ?? []) as Array<{
     is_primary: boolean;
     sort_order: number;

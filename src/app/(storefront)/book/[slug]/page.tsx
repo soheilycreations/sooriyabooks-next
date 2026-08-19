@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBookBySlug } from "@/lib/catalog/queries";
+import { getBookBySlug, getRelatedBooks } from "@/lib/catalog/queries";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { WishlistButton } from "@/components/storefront/wishlist-button";
 import { ReviewsSection } from "@/components/storefront/reviews-section";
-import { isInWishlist } from "@/lib/customers/wishlist-actions";
+import { ProductCard } from "@/components/storefront/product-card";
+import { SectionHeading } from "@/components/storefront/section-heading";
+import { Reveal } from "@/components/storefront/reveal";
+import { isInWishlist, getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 import { getBookReviews } from "@/lib/customers/review-queries";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +67,12 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
   const isAvailable = stockTrackingEnabled ? trackedAvailable > 0 : (b.inventory?.untracked_available ?? true);
   const isLowStock = stockTrackingEnabled && trackedAvailable > 0 && trackedAvailable <= 5;
   const isOnSale = b.discount_price != null && Number(b.discount_price) < Number(b.selling_price);
-  const [inWishlist, reviews] = await Promise.all([isInWishlist(b.id), getBookReviews(b.id)]);
+  const [inWishlist, reviews, relatedBooks, relatedWishlistIds] = await Promise.all([
+    isInWishlist(b.id),
+    getBookReviews(b.id),
+    getRelatedBooks(b.id, 4),
+    getWishlistBookIds(),
+  ]);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -82,10 +90,10 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
   };
 
   return (
-    <div className="container py-12">
+    <div className="container py-12 md:py-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <div className="grid gap-10 md:grid-cols-2">
+      <div className="grid gap-10 md:grid-cols-2 md:gap-16">
         <ProductGallery images={galleryImages} title={b.title} />
 
         <div>
@@ -94,7 +102,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
               {b.authors.name}
             </Link>
           )}
-          <h1 className="mt-2 font-heading text-3xl">{b.title}</h1>
+          <h1 className="mt-2 font-heading text-3xl leading-tight md:text-4xl md:leading-tight">{b.title}</h1>
           {b.subtitle && <p className="mt-1 text-lg text-muted-foreground">{b.subtitle}</p>}
 
           <div className="mt-4 flex items-center gap-3">
@@ -123,7 +131,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
             <p className="mt-4 text-muted-foreground">{b.short_description}</p>
           )}
 
-          <div className="mt-6 flex gap-2">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex-1">
               <AddToCartButton
                 book={{
@@ -189,6 +197,23 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
       <div className="mt-16 max-w-3xl border-t pt-10">
         <ReviewsSection bookId={b.id} reviews={reviews} />
       </div>
+
+      {relatedBooks.length > 0 && (
+        <div className="mt-16 border-t pt-10">
+          <SectionHeading eyebrow="You might also like" title="Related Books" />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
+            {relatedBooks.map((related, i) => (
+              <Reveal key={related.id} index={i}>
+                <ProductCard
+                  book={related}
+                  showWishlist
+                  inWishlist={relatedWishlistIds.has(related.id)}
+                />
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
