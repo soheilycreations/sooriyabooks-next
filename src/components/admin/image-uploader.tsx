@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Upload, X, Loader2, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, X, Loader2, Star, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadMedia } from "@/lib/media/actions";
+import { MediaPickerDialog } from "./media-picker-dialog";
 
 export interface UploadedImage {
   mediaId: string;
@@ -12,13 +13,12 @@ export interface UploadedImage {
 }
 
 /**
- * Multi-image gallery manager. Upload/remove logic is unchanged from the
- * original implementation — only the presentation changed: a large main
- * preview + a thumbnail strip, instead of a flat grid of same-size
- * thumbnails that made it hard to tell how many images existed or which
- * one was the cover.
+ * Multi-image gallery manager. Two ways to add images: upload a new file,
+ * or pick from the existing Media Library (media-picker-dialog.tsx, which
+ * reuses listMedia() — the same query the standalone Media Library page
+ * already uses, not a second implementation).
  *
- * The underlying data model is unchanged too: `images[0]` is always the
+ * The underlying data model is unchanged: `images[0]` is always the
  * primary/cover image (matches setBookImages() in src/lib/catalog/actions.ts,
  * which sets is_primary = index===0 on save) — "Set as cover" here just
  * reorders the array so the chosen image becomes index 0.
@@ -27,15 +27,27 @@ export function ImageUploader({
   images,
   onChange,
   multiple = true,
+  showMediaPicker = true,
 }: {
   images: UploadedImage[];
   onChange: (images: UploadedImage[]) => void;
   multiple?: boolean;
+  /** Hide "Choose from Media" — e.g. on the Media Library page itself, where picking from the library while viewing it doesn't make sense. */
+  showMediaPicker?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isPending, startTransition] = useTransition();
+  // Deliberately a plain boolean, not useTransition()'s isPending: an
+  // uncaught error from uploadMedia() (a thrown exception, not just an
+  // {ok:false} result — e.g. a network failure, or the Server Action
+  // failing to serialize its response) previously left isPending stuck
+  // true forever, since nothing in the upload loop ever caught it. A
+  // try/catch/finally around a plain state flag guarantees the spinner
+  // always clears and the real error is always shown, regardless of how
+  // the upload failed.
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Keep the main preview pointed at a valid image whenever the list changes
   // (an upload, a removal, a reorder).
@@ -43,26 +55,52 @@ export function ImageUploader({
     setActiveIndex((i) => Math.min(i, Math.max(images.length - 1, 0)));
   }, [images.length]);
 
-  function handleFiles(files: FileList | null) {
+  async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setError(null);
-    startTransition(async () => {
+    setIsUploading(true);
+    try {
       const uploaded: UploadedImage[] = [];
+      const failures: string[] = [];
       for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append("file", file);
-        const result = await uploadMedia(formData);
-        if (!result.ok) {
-          setError(result.error);
-          continue;
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          const result = await uploadMedia(formData);
+          if (!result.ok) {
+            failures.push(`${file.name}: ${result.error}`);
+            continue;
+          }
+          uploaded.push({ mediaId: result.data.id, url: result.data.url });
+        } catch (err) {
+          // uploadMedia() threw instead of returning {ok:false} — a
+          // network failure or unexpected server error. Never let this
+          // fall through silently; record it and keep trying the rest of
+          // the selected files.
+          failures.push(`${file.name}: ${err instanceof Error ? err.message : "Upload failed unexpectedly"}`);
         }
-        uploaded.push({ mediaId: result.data.id, url: result.data.url });
       }
-      const next = multiple ? [...images, ...uploaded] : uploaded.slice(0, 1);
-      onChange(next);
-      if (uploaded.length > 0) setActiveIndex(multiple ? images.length : 0); // jump the preview to the first newly-added image
+      if (uploaded.length > 0) {
+        const next = multiple ? [...images, ...uploaded] : uploaded.slice(0, 1);
+        onChange(next);
+        setActiveIndex(multiple ? images.length : 0); // jump the preview to the first newly-added image
+      }
+      if (failures.length > 0) {
+        setError(failures.join(" — "));
+      }
+    } finally {
+      setIsUploading(false);
       if (inputRef.current) inputRef.current.value = "";
-    });
+    }
+  }
+
+  function addFromLibrary(picked: UploadedImage[]) {
+    const existingIds = new Set(images.map((img) => img.mediaId));
+    const newOnes = picked.filter((img) => !existingIds.has(img.mediaId)); // never duplicate an already-attached image
+    if (newOnes.length === 0) return;
+    const next = multiple ? [...images, ...newOnes] : newOnes.slice(0, 1);
+    onChange(next);
+    setActiveIndex(multiple ? images.length : 0);
   }
 
   function removeAt(index: number) {
@@ -179,12 +217,24 @@ export function ImageUploader({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={isPending}
-          className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground hover:border-accent hover:text-accent"
+          disabled={isUploading}
+          className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground hover:border-accent hover:text-accent disabled:opacity-50"
         >
-          {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+          {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
           <span className="text-[10px]">Upload</span>
         </button>
+
+        {showMediaPicker && (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            disabled={isUploading}
+            className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            <FolderOpen className="h-5 w-5" />
+            <span className="text-center text-[10px] leading-tight">Choose from Media</span>
+          </button>
+        )}
       </div>
 
       <input
@@ -199,6 +249,13 @@ export function ImageUploader({
       <p className="mt-2 text-xs text-muted-foreground">
         Click a thumbnail to preview it. Hover a thumbnail to reorder, set it as the cover image, or remove it.
       </p>
+
+      <MediaPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        alreadyAttachedIds={new Set(images.map((img) => img.mediaId))}
+        onConfirm={addFromLibrary}
+      />
     </div>
   );
 }

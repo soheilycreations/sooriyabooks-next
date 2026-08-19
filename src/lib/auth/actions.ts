@@ -34,6 +34,19 @@ export async function signIn(input: LoginInput): Promise<ActionResult> {
     return { ok: false, error: profile.blocked_reason || "This account has been restricted." };
   }
 
+  // Self-heal a missing profiles row: signUp() creates one, but any
+  // auth.users row that didn't originate from this app's own registration
+  // form (e.g. an account created directly in the Supabase Dashboard) has
+  // none — and profiles.id is the FK target for addresses/orders/reviews/
+  // wishlist, so checkout fails with a foreign-key violation the moment
+  // such an account tries to save a delivery address. Upserting only
+  // `id` here is a no-op for an existing row (no other column is touched)
+  // and creates the missing row otherwise — same pattern signUp() already
+  // uses, just applied at the other real session chokepoint.
+  if (!profile) {
+    await supabase.from("profiles").upsert({ id: data.user.id });
+  }
+
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }
@@ -55,11 +68,18 @@ export async function signUp(input: RegisterInput): Promise<ActionResult> {
   }
 
   if (data.user) {
-    await supabase.from("profiles").upsert({
+    const { error: profileError } = await supabase.from("profiles").upsert({
       id: data.user.id,
       full_name: parsed.data.fullName,
       phone: parsed.data.phone || null,
     });
+    if (profileError) {
+      // Never fail silently here — a missing profiles row is exactly what
+      // causes checkout's addresses_customer_id_fkey violation later. The
+      // auth account itself was already created successfully at this
+      // point, so this is logged rather than failing the whole signup.
+      console.error("signUp: failed to create profiles row:", profileError.message, "for user", data.user.id);
+    }
   }
 
   revalidatePath("/", "layout");

@@ -32,7 +32,7 @@ export function MediaLibraryClient({ initialMedia }: { initialMedia: MediaItem[]
   return (
     <div>
       <div className="mb-6">
-        <ImageUploader images={[]} onChange={handleUpload} multiple />
+        <ImageUploader images={[]} onChange={handleUpload} multiple showMediaPicker={false} />
       </div>
       <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
         {media.map((m) => (

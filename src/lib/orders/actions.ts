@@ -27,6 +27,30 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ 
     return { ok: false, error: "Please sign in to place an order" };
   }
 
+  // 0. Self-heal a missing profiles row before it can break the
+  // addresses insert below (addresses.customer_id -> profiles(id)).
+  // signIn() also does this, but only at the moment of a fresh login —
+  // a session that was already active before that fix shipped, or an
+  // account that predates it, would never pick it up otherwise. Doing it
+  // here guarantees the row exists at the exact point it's needed,
+  // regardless of session age. Upserting only `id` is a no-op for an
+  // existing row (touches no other column).
+  const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (!existingProfile) {
+    const { error: profileError } = await supabase.from("profiles").upsert({ id: user.id });
+    if (profileError) {
+      console.error("createOrder: failed to self-heal missing profiles row:", {
+        message: profileError.message,
+        details: profileError.details,
+        hint: profileError.hint,
+        code: profileError.code,
+        userId: user.id,
+      });
+      const detail = process.env.NODE_ENV !== "production" ? ` (${profileError.message})` : "";
+      return { ok: false, error: `Could not prepare your account for checkout${detail}` };
+    }
+  }
+
   // 1. Re-price every line item from the database — client totals are UI-only.
   const bookIds = data.items.map((i) => i.bookId);
   const { data: books, error: booksError } = await supabase
@@ -76,7 +100,20 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ 
       .select("id")
       .single();
     if (addrError || !newAddr) {
-      return { ok: false, error: "Could not save delivery address" };
+      // Never swallow the real cause — log it server-side unconditionally,
+      // and surface it to the caller too when running in development so it
+      // shows up directly in the checkout UI while diagnosing, without
+      // exposing internal DB detail to real customers in production.
+      console.error("createOrder: failed to insert delivery address:", {
+        message: addrError?.message,
+        details: addrError?.details,
+        hint: addrError?.hint,
+        code: addrError?.code,
+        customerId: user.id,
+        cityId: data.cityId,
+      });
+      const detail = process.env.NODE_ENV !== "production" && addrError ? ` (${addrError.message})` : "";
+      return { ok: false, error: `Could not save delivery address${detail}` };
     }
     addressId = newAddr.id;
   }
