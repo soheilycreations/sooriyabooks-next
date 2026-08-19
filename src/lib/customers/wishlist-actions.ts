@@ -30,6 +30,18 @@ export async function toggleWishlist(bookId: string): Promise<ActionResult<{ inW
   return { ok: true, data: { inWishlist: true } };
 }
 
+/** Bulk lookup for rendering initial wishlist state across a grid of cards without one query per card. */
+export async function getWishlistBookIds(): Promise<Set<string>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Set();
+
+  const { data } = await supabase.from("wishlist_items").select("book_id").eq("customer_id", user.id);
+  return new Set((data ?? []).map((row) => row.book_id));
+}
+
 export async function isInWishlist(bookId: string): Promise<boolean> {
   const supabase = await createClient();
   const {

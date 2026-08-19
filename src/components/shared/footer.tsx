@@ -1,12 +1,19 @@
 import Link from "next/link";
+import { Logo } from "@/components/shared/logo";
+import { selectNavCategories } from "@/lib/catalog/nav-categories";
 import { createClient } from "@/lib/supabase/server";
+import { cn, navLinkFocusClass } from "@/lib/utils";
 
+// Same top-level category slice + filtering as the header nav
+// (src/components/shared/header.tsx) so "Shop" here and the primary nav
+// never disagree about what the top categories are.
 async function getShopLinks() {
   const supabase = await createClient();
-  const { data } = await supabase.from("categories").select("name, slug").is("parent_id", null).order("sort_order").limit(3);
+  const { data } = await supabase.from("categories").select("name, slug").is("parent_id", null).order("sort_order").limit(20);
+  const categories = selectNavCategories(data ?? [], 6);
   return [
-    ...(data ?? []).map((c) => ({ href: `/category/${c.slug}`, label: c.name })),
-    { href: "/search?featured=1", label: "Featured Books" },
+    ...categories.map((c) => ({ href: `/category/${c.slug}`, label: c.name })),
+    { href: "/search", label: "All Books" },
   ];
 }
 
@@ -35,23 +42,23 @@ export async function Footer() {
 
   return (
     <footer className="mt-24 border-t bg-secondary/40">
-      <div className="container grid gap-10 py-16 md:grid-cols-4">
+      <div className="container grid gap-10 py-16 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
-          <p className="font-heading text-xl">Sooriya Publishers</p>
-          <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-            Buy Books to your Doorstep — Sri Lanka&apos;s trusted publishing and distribution
-            company since 1994.
+          <Logo variant="full" height={34} />
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            The Light of Learning — Sri Lanka&apos;s trusted publishing and distribution company
+            since 1994.
           </p>
         </div>
         {footerColumns.map((col) => (
           <div key={col.title}>
-            <p className="font-medium">{col.title}</p>
-            <ul className="mt-3 space-y-2">
+            <p className="font-heading text-sm uppercase tracking-wide text-foreground/90">{col.title}</p>
+            <ul className="mt-4 space-y-2.5">
               {col.links.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className={cn("text-sm text-muted-foreground hover:text-accent", navLinkFocusClass)}
                   >
                     {link.label}
                   </Link>

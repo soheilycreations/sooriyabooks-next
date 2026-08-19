@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Branded focus-visible ring for plain text nav links (header, mobile drawer,
+ * footer) — matches the ring Button already uses, per docs/design-system.md
+ * §8. Not applied to body-copy links, only navigation-role links.
+ */
+export const navLinkFocusClass =
+  "rounded-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
 export function formatCurrency(amount: number, currency = "LKR") {
   return new Intl.NumberFormat("en-LK", {
     style: "currency",

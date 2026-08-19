@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { HeroSlide } from "@/lib/content/queries";
 
+const EASE_PREMIUM = [0.16, 1, 0.3, 1] as const;
+
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const [index, setIndex] = useState(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -37,16 +40,34 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             </div>
           )}
           <div className="container flex flex-col items-start gap-6 py-20 md:py-28">
-            <h1 className={`max-w-2xl font-heading text-4xl leading-tight md:text-6xl ${slide.imageUrl ? "text-white" : ""}`}>
+            <motion.h1
+              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: EASE_PREMIUM }}
+              className={`max-w-2xl font-heading text-4xl leading-tight md:text-6xl md:leading-tight ${slide.imageUrl ? "text-white" : ""}`}
+            >
               {slide.heading}
-            </h1>
+            </motion.h1>
             {slide.subheading && (
-              <p className={`max-w-lg ${slide.imageUrl ? "text-white/90" : "text-muted-foreground"}`}>{slide.subheading}</p>
+              <motion.p
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: EASE_PREMIUM, delay: 0.1 }}
+                className={`max-w-lg ${slide.imageUrl ? "text-white/90" : "text-muted-foreground"}`}
+              >
+                {slide.subheading}
+              </motion.p>
             )}
             {slide.buttonText && slide.linkUrl && (
-              <Button size="lg" variant="accent" asChild>
-                <Link href={slide.linkUrl}>{slide.buttonText}</Link>
-              </Button>
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: EASE_PREMIUM, delay: 0.2 }}
+              >
+                <Button size="lg" variant="accent" asChild>
+                  <Link href={slide.linkUrl}>{slide.buttonText}</Link>
+                </Button>
+              </motion.div>
             )}
           </div>
         </motion.div>

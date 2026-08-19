@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { selectNavCategories } from "@/lib/catalog/nav-categories";
 
 export interface BookCardData {
   id: string;
@@ -8,6 +9,9 @@ export interface BookCardData {
   discountPrice: number | null;
   authorName: string | null;
   coverUrl: string | null;
+  /** Undefined when the query didn't join inventory — treat as "unknown", not "out of stock". */
+  inStock?: boolean;
+  lowStock?: boolean;
 }
 
 function resolveCoverUrl(storagePath: string | null): string | null {
@@ -18,15 +22,16 @@ function resolveCoverUrl(storagePath: string | null): string | null {
 }
 
 /** Books for homepage/category grids. Returns [] gracefully if the catalog is empty (pre-migration). */
+const BOOK_CARD_SELECT_WITH_STOCK = `id, title, slug, selling_price, discount_price,
+       authors ( name ),
+       book_images ( is_primary, sort_order, media_assets ( storage_path ) ),
+       inventory ( quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available )`;
+
 export async function getFeaturedBooks(limit = 8): Promise<BookCardData[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("books")
-    .select(
-      `id, title, slug, selling_price, discount_price,
-       authors ( name ),
-       book_images ( is_primary, sort_order, media_assets ( storage_path ) )`,
-    )
+    .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
     .eq("is_featured", true)
     .order("created_at", { ascending: false })
@@ -40,11 +45,7 @@ export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("books")
-    .select(
-      `id, title, slug, selling_price, discount_price,
-       authors ( name ),
-       book_images ( is_primary, sort_order, media_assets ( storage_path ) )`,
-    )
+    .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
     .eq("is_new_arrival", true)
     .order("created_at", { ascending: false })
@@ -105,6 +106,66 @@ export async function getAllCategories() {
   return data ?? [];
 }
 
+export interface StoreStats {
+  bookCount: number;
+  categoryCount: number;
+}
+
+/** Live counts for the brand-story section — never hardcode these, the catalog changes. */
+export async function getStoreStats(): Promise<StoreStats> {
+  const supabase = await createClient();
+  const [books, categories] = await Promise.all([
+    supabase.from("books").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("categories").select("id", { count: "exact", head: true }),
+  ]);
+  return { bookCount: books.count ?? 0, categoryCount: categories.count ?? 0 };
+}
+
+export interface CategoryShelfEntry {
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  bookCount: number;
+}
+
+/** Top-level categories for the homepage "shelf" — real counts, real images where set, no invented data. */
+export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntry[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("id, name, slug, description, image_url")
+    .is("parent_id", null)
+    .order("sort_order")
+    .limit(20);
+
+  const categories = selectNavCategories(data ?? [], limit) as Array<{
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    image_url: string | null;
+  }>;
+
+  const counts = await Promise.all(
+    categories.map((c) =>
+      supabase
+        .from("book_categories")
+        .select("books!inner(id)", { count: "exact", head: true })
+        .eq("category_id", c.id)
+        .eq("books.is_active", true),
+    ),
+  );
+
+  return categories.map((c, i) => ({
+    name: c.name,
+    slug: c.slug,
+    description: c.description,
+    imageUrl: c.image_url,
+    bookCount: counts[i]?.count ?? 0,
+  }));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapBookRowToCard(row: any): BookCardData {
   const images = (row.book_images ?? []) as Array<{
@@ -114,6 +175,26 @@ function mapBookRowToCard(row: any): BookCardData {
   }>;
   const primary = [...images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)[0];
 
+  const inv = row.inventory as {
+    quantity_on_hand: number;
+    quantity_reserved: number;
+    low_stock_threshold: number;
+    stock_tracking_enabled: boolean;
+    untracked_available: boolean;
+  } | null | undefined;
+
+  let inStock: boolean | undefined;
+  let lowStock = false;
+  if (inv) {
+    if (inv.stock_tracking_enabled) {
+      const available = inv.quantity_on_hand - inv.quantity_reserved;
+      inStock = available > 0;
+      lowStock = inStock && available <= inv.low_stock_threshold;
+    } else {
+      inStock = inv.untracked_available;
+    }
+  }
+
   return {
     id: row.id,
     title: row.title,
@@ -122,5 +203,7 @@ function mapBookRowToCard(row: any): BookCardData {
     discountPrice: row.discount_price ? Number(row.discount_price) : null,
     authorName: row.authors?.name ?? null,
     coverUrl: resolveCoverUrl(primary?.media_assets?.storage_path ?? null),
+    inStock,
+    lowStock,
   };
 }
