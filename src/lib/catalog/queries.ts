@@ -75,25 +75,21 @@ export async function getBooksByCategory(
 
   if (!category) return { books: [], total: 0 };
 
+  // Base table must be `books` itself, not the book_categories join table —
+  // .order(col, { foreignTable }) on a nested embed silently no-ops against
+  // this project's PostgREST (it generates `books.order=col.asc`, which is
+  // ignored rather than erroring). Ordering the base table directly is
+  // exactly how search's already-correct sort works.
   const { column, ascending } = SORT_COLUMN[sort];
   const { data, count } = await supabase
-    .from("book_categories")
-    .select(
-      `books!inner (
-        id, title, slug, selling_price, discount_price, is_active, created_at,
-        authors ( name ),
-        book_images ( is_primary, sort_order, media_assets ( storage_path ) ),
-        inventory ( quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available )
-      )`,
-      { count: "exact" },
-    )
-    .eq("category_id", category.id)
-    .eq("books.is_active", true)
-    .order(column, { foreignTable: "books", ascending })
+    .from("books")
+    .select(`${BOOK_CARD_SELECT_WITH_STOCK}, book_categories!inner ( category_id )`, { count: "exact" })
+    .eq("is_active", true)
+    .eq("book_categories.category_id", category.id)
+    .order(column, { ascending })
     .limit(limit);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const books = (data ?? []).map((row: any) => mapBookRowToCard(row.books));
+  const books = (data ?? []).map(mapBookRowToCard);
   return { books, total: count ?? books.length };
 }
 
