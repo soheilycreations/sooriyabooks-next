@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/storefront/product-card";
-import type { BookCardData } from "@/lib/catalog/queries";
+import { Reveal } from "@/components/storefront/reveal";
+import { BOOK_CARD_SELECT_WITH_STOCK, mapBookRowToCard } from "@/lib/catalog/queries";
+import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
+import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 3600;
 
@@ -26,27 +28,17 @@ export default async function AuthorPage({ params }: { params: Promise<{ slug: s
   if (!author) notFound();
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("books")
-    .select(
-      `id, title, slug, selling_price, discount_price,
-       book_images ( is_primary, sort_order, media_assets ( storage_path ) )`,
-    )
-    .eq("author_id", author.id)
-    .eq("is_active", true)
-    .limit(48);
+  const [{ data }, wishlistIds] = await Promise.all([
+    supabase
+      .from("books")
+      .select(BOOK_CARD_SELECT_WITH_STOCK)
+      .eq("author_id", author.id)
+      .eq("is_active", true)
+      .limit(48),
+    getWishlistBookIds(),
+  ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const books: BookCardData[] = (data ?? []).map((row: any) => {
-    const primary = [...(row.book_images ?? [])].sort(
-      (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
-    )[0];
-    const coverUrl = primary?.media_assets?.storage_path
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${primary.media_assets.storage_path}`
-      : null;
-    return { id: row.id, title: row.title, slug: row.slug, sellingPrice: Number(row.selling_price), discountPrice: row.discount_price ? Number(row.discount_price) : null, authorName: author.name, coverUrl };
-  });
-
+  const books = (data ?? []).map(mapBookRowToCard);
   const photoUrl = author.photo_url;
 
   return (
@@ -67,13 +59,15 @@ export default async function AuthorPage({ params }: { params: Promise<{ slug: s
       </div>
 
       {books.length > 0 ? (
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-          {books.map((book) => (
-            <ProductCard key={book.id} book={book} />
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
+          {books.map((book, i) => (
+            <Reveal key={book.id} index={i % 8}>
+              <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
+            </Reveal>
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground">No books by this author yet.</p>
+        <p className="py-12 text-center text-muted-foreground">No books by this author yet.</p>
       )}
     </div>
   );
