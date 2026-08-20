@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormAlert } from "@/components/shared/form-alert";
+import { GoogleOneTap } from "@/components/shared/google-one-tap";
 import { signIn } from "@/lib/auth/actions";
+
+const GOOGLE_ENABLED = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
 export function LoginForm() {
   const router = useRouter();
@@ -32,39 +35,57 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </div>
-      <div>
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-      {error && <FormAlert>{error}</FormAlert>}
-      <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in..." : "Sign In"}
-      </Button>
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        {error && <FormAlert>{error}</FormAlert>}
+        <Button type="submit" className="w-full" disabled={isPending}>
+          {isPending ? "Signing in..." : "Sign In"}
+        </Button>
+      </form>
+
+      {GOOGLE_ENABLED && (
+        <>
+          <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            Or
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <div className="flex justify-center">
+            <Suspense fallback={null}>
+              <GoogleOneTap variant="button" />
+            </Suspense>
+          </div>
+        </>
+      )}
+
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="text-accent hover:underline">
           Create one
         </Link>
       </p>
-    </form>
+    </div>
   );
 }

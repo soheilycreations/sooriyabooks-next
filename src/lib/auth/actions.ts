@@ -3,11 +3,47 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { loginSchema, registerSchema, type LoginInput, type RegisterInput } from "@/lib/validation/auth";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };
+
+/**
+ * Shared post-authentication rules, applied after ANY sign-in method
+ * (password or Google) establishes a Supabase session — never just at the
+ * password form. Blocked customers (generalizes the legacy "Blocked Users"
+ * rule) are signed back out immediately rather than allowed to browse the
+ * account area, and a missing `profiles` row is self-healed: it's the FK
+ * target for addresses/orders/reviews/wishlist, so checkout fails with a
+ * foreign-key violation the moment such an account tries to save a
+ * delivery address — this can happen for a Google account exactly the same
+ * way it could for a Dashboard-created one.
+ */
+async function runPostSignInChecks(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<ActionResult> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_blocked, blocked_reason")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profile?.is_blocked) {
+    await supabase.auth.signOut();
+    return { ok: false, error: profile.blocked_reason || "This account has been restricted." };
+  }
+
+  if (!profile) {
+    await supabase.from("profiles").upsert({ id: userId });
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
 
 export async function signIn(input: LoginInput): Promise<ActionResult> {
   const parsed = loginSchema.safeParse(input);
@@ -21,34 +57,28 @@ export async function signIn(input: LoginInput): Promise<ActionResult> {
     return { ok: false, error: error.message };
   }
 
-  // Blocked customers (generalizes the legacy "Blocked Users" rule) are
-  // signed back out immediately rather than allowed to browse the account area.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_blocked, blocked_reason")
-    .eq("id", data.user.id)
-    .maybeSingle();
+  return runPostSignInChecks(supabase, data.user.id);
+}
 
-  if (profile?.is_blocked) {
-    await supabase.auth.signOut();
-    return { ok: false, error: profile.blocked_reason || "This account has been restricted." };
+/**
+ * Called after Google One Tap / the Google button already established a
+ * Supabase session client-side via signInWithIdToken() — this just applies
+ * the same blocked-check + profile self-heal the password flow gets,
+ * against the session cookie the client-side call already set. Not a
+ * second auth system: Supabase Auth is still the only thing issuing
+ * sessions here, this is only where the app's own post-auth rules hook in.
+ */
+export async function completeSocialSignIn(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: "Not signed in" };
   }
 
-  // Self-heal a missing profiles row: signUp() creates one, but any
-  // auth.users row that didn't originate from this app's own registration
-  // form (e.g. an account created directly in the Supabase Dashboard) has
-  // none — and profiles.id is the FK target for addresses/orders/reviews/
-  // wishlist, so checkout fails with a foreign-key violation the moment
-  // such an account tries to save a delivery address. Upserting only
-  // `id` here is a no-op for an existing row (no other column is touched)
-  // and creates the missing row otherwise — same pattern signUp() already
-  // uses, just applied at the other real session chokepoint.
-  if (!profile) {
-    await supabase.from("profiles").upsert({ id: data.user.id });
-  }
-
-  revalidatePath("/", "layout");
-  return { ok: true, data: undefined };
+  return runPostSignInChecks(supabase, user.id);
 }
 
 export async function signUp(input: RegisterInput): Promise<ActionResult> {
