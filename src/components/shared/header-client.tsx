@@ -51,7 +51,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           transform both animate reliably here regardless of sticky state. */}
       <div
         className={cn(
-          "container flex items-center justify-between transition-[padding] duration-300 ease-premium",
+          "container flex items-center transition-[padding] duration-300 ease-premium",
           scrolled ? "py-3" : "py-5",
         )}
       >
@@ -68,7 +68,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           </div>
         </div>
 
-        <nav aria-label="Primary" className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-1 lg:ml-8 lg:flex">
           <MegaMenu
             categories={categories}
             open={overlay === "menu"}
@@ -85,7 +85,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           </Link>
         </nav>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
             size="icon"

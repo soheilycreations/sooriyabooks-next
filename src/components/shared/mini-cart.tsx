@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -19,6 +20,9 @@ export function MiniCart({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const { items, subtotal, itemCount, updateQuantity, removeItem } = useCart();
   const router = useRouter();
   const pathname = usePathname();
+  // Portals to document.body — see the identical note in search-overlay.tsx.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     onOpenChange(false);
@@ -43,11 +47,13 @@ export function MiniCart({ open, onOpenChange }: { open: boolean; onOpenChange: 
     router.push(href);
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div
         className={cn(
-          "fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300 ease-premium",
+          "fixed inset-0 z-[100] bg-black/40 transition-opacity duration-300 ease-premium",
           open ? "visible opacity-100" : "invisible opacity-0",
         )}
         onClick={() => onOpenChange(false)}
@@ -59,7 +65,7 @@ export function MiniCart({ open, onOpenChange }: { open: boolean; onOpenChange: 
         aria-label="Your cart"
         aria-hidden={!open}
         className={cn(
-          "fixed inset-y-0 right-0 z-[60] flex h-full w-full max-w-[420px] flex-col border-l bg-background shadow-2xl transition-transform duration-300 ease-premium",
+          "fixed inset-y-0 right-0 z-[101] flex h-full w-full max-w-[420px] flex-col border-l bg-background shadow-2xl transition-transform duration-300 ease-premium",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
@@ -186,6 +192,7 @@ export function MiniCart({ open, onOpenChange }: { open: boolean; onOpenChange: 
           </>
         )}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,6 +17,13 @@ export function SearchOverlay({ open, onOpenChange }: { open: boolean; onOpenCha
   const [results, setResults] = useState<BookCardData[]>([]);
   const [isPending, startTransition] = useTransition();
   const hasSearched = query.trim().length > 0;
+  // Portals to document.body so this overlay isn't trapped inside <header>'s
+  // own stacking context (position: sticky + z-40 makes header — and every
+  // descendant, fixed-position or not — paint as one unit at that z-level,
+  // regardless of the descendant's own z-index). document/body only exist
+  // after mount, hence the guard.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (open) {
@@ -70,10 +78,12 @@ export function SearchOverlay({ open, onOpenChange }: { open: boolean; onOpenCha
     router.push(`/book/${slug}`);
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-[60] bg-background transition-opacity duration-300 ease-premium",
+        "fixed inset-0 z-[100] bg-background transition-opacity duration-300 ease-premium",
         open ? "visible opacity-100" : "invisible opacity-0",
       )}
       onClick={(e) => {
@@ -192,6 +202,7 @@ export function SearchOverlay({ open, onOpenChange }: { open: boolean; onOpenCha
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
