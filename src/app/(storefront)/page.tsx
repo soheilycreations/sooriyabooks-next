@@ -9,6 +9,7 @@ import { BrandStory } from "@/components/storefront/brand-story";
 import { Testimonials } from "@/components/storefront/testimonials";
 import { FinalCta } from "@/components/storefront/final-cta";
 import { Reveal } from "@/components/storefront/reveal";
+import { NewArrivalsCarousel } from "@/components/storefront/new-arrivals-carousel";
 import {
   getFeaturedBooks,
   getNewArrivals,
@@ -40,7 +41,7 @@ export default async function HomePage() {
       {slides.length > 0 ? <HeroSlider slides={slides} /> : <FallbackHero />}
 
       {categories.length > 0 && (
-        <section id="categories" className="container py-16 md:py-24">
+        <section id="categories" className="container py-16 md:py-28">
           <SectionHeading
             eyebrow="Browse the shelves"
             title="Find your next read"
@@ -51,13 +52,9 @@ export default async function HomePage() {
       )}
 
       {featured.length > 0 && (
-        <section className="container py-16 md:py-24">
-          <SectionHeading
-            eyebrow="Handpicked"
-            title="Featured Books"
-            viewAllHref="/search?featured=1"
-          />
-          <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
+        <section className="container py-16 md:py-28">
+          <SectionHeading eyebrow="Handpicked" title="Featured Books" viewAllHref="/search?featured=1" />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
             {featured.map((book, i) => (
               <Reveal key={book.id} index={i}>
                 <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
@@ -68,22 +65,12 @@ export default async function HomePage() {
       )}
 
       {newArrivals.length > 0 && (
-        <section className="border-y bg-secondary/30 py-16 md:py-24">
+        <section className="border-y bg-secondary/30 py-16 md:py-28">
           <div className="container">
             <SectionHeading eyebrow="Just in" title="New Arrivals" viewAllHref="/search?new=1" />
           </div>
           <div className="container">
-            <div className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {newArrivals.map((book, i) => (
-                <Reveal
-                  key={book.id}
-                  index={i}
-                  className="w-[45vw] shrink-0 snap-start sm:w-[220px]"
-                >
-                  <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
-                </Reveal>
-              ))}
-            </div>
+            <NewArrivalsCarousel books={newArrivals} wishlistIds={wishlistIds} />
           </div>
         </section>
       )}
@@ -116,29 +103,36 @@ function FallbackHero() {
           sizes="100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       </div>
 
-      <div className="container flex flex-col items-start gap-6 py-20 md:py-32">
+      <div className="container flex min-h-[420px] flex-col items-start justify-center gap-5 py-20 md:min-h-[560px] md:py-32">
         <Reveal>
-          <p className="text-sm font-medium uppercase tracking-widest text-accent">
+          <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
+            <span className="h-px w-8 bg-accent" aria-hidden />
             Sooriya Publishers &middot; Since 1994
           </p>
         </Reveal>
         <Reveal index={1}>
-          <h1 className="max-w-xl font-heading text-4xl leading-tight text-white md:text-6xl md:leading-tight">
+          <h1 className="max-w-3xl text-balance font-heading text-5xl leading-[1.05] tracking-tight text-white md:text-7xl md:leading-[1.03]">
             The Light of Learning
           </h1>
         </Reveal>
         <Reveal index={2}>
-          <p className="max-w-md text-white/85">
+          <p className="max-w-md text-base leading-relaxed text-white/85 md:text-lg">
             Discover books that inspire, educate and stay with you — delivered to your doorstep
             across Sri Lanka.
           </p>
         </Reveal>
         <Reveal index={3}>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" variant="accent" asChild>
+          <div className="mt-2 flex flex-wrap gap-3">
+            <Button
+              size="lg"
+              variant="accent"
+              asChild
+              className="px-10 shadow-lg shadow-accent/20 transition-transform duration-300 ease-premium hover:scale-[1.02]"
+            >
               <Link href="/search">Shop the Collection</Link>
             </Button>
             <Button

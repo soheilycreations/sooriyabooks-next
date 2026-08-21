@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { toggleWishlist } from "@/lib/customers/wishlist-actions";
 import { cn } from "@/lib/utils";
 
-export function WishlistButton({ bookId, initialInWishlist = false }: { bookId: string; initialInWishlist?: boolean }) {
+export function WishlistButton({
+  bookId,
+  initialInWishlist = false,
+  className,
+}: {
+  bookId: string;
+  initialInWishlist?: boolean;
+  className?: string;
+}) {
   const router = useRouter();
   const [inWishlist, setInWishlist] = useState(initialInWishlist);
   const [isPending, startTransition] = useTransition();
@@ -16,6 +24,7 @@ export function WishlistButton({ bookId, initialInWishlist = false }: { bookId: 
     <Button
       variant="outline"
       size="icon"
+      className={cn("transition-colors duration-200", className)}
       disabled={isPending}
       aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
       onClick={() =>

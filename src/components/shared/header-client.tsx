@@ -5,16 +5,29 @@ import Link from "next/link";
 import { Heart, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CartIconButton } from "@/components/shared/cart-icon-button";
-import { HeaderSearch } from "@/components/shared/header-search";
+import { MegaMenu } from "@/components/shared/mega-menu";
+import { SearchOverlay } from "@/components/shared/search-overlay";
+import { MiniCart } from "@/components/shared/mini-cart";
 import { MobileNav } from "@/components/shared/mobile-nav";
 import { Logo } from "@/components/shared/logo";
 import type { NavCategory } from "@/lib/catalog/nav-categories";
 import { cn, navLinkFocusClass } from "@/lib/utils";
 
-const navLinkClass = cn("text-sm font-medium text-foreground/80 hover:text-foreground", navLinkFocusClass);
+const navLinkClass = cn(
+  "relative py-1 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground",
+  "after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-300 after:ease-premium hover:after:scale-x-100",
+  navLinkFocusClass,
+);
+
+/** Only one overlay (mega menu / search / mini-cart) is ever open at once —
+ *  a single piece of state, rather than three independent booleans, makes
+ *  that mutual exclusion automatic instead of something each overlay has
+ *  to remember to enforce. */
+type Overlay = "menu" | "search" | "cart" | null;
 
 export function HeaderClient({ categories }: { categories: NavCategory[] }) {
   const [scrolled, setScrolled] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay>(null);
 
   useEffect(() => {
     function onScroll() {
@@ -55,28 +68,32 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           </div>
         </div>
 
-        <nav aria-label="Primary" className="hidden items-center gap-8 lg:flex">
-          {categories.map((cat) => (
-            <Link key={cat.slug} href={`/category/${cat.slug}`} className={navLinkClass}>
-              {cat.name}
-            </Link>
-          ))}
-          <Link href="/search" className={navLinkClass}>
-            All Books
+        <nav aria-label="Primary" className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+          <MegaMenu
+            categories={categories}
+            open={overlay === "menu"}
+            onOpenChange={(open) => setOverlay(open ? "menu" : null)}
+          />
+          <Link href="/search" className={cn(navLinkClass, "px-3 py-2")}>
+            Books
           </Link>
-          <Link href="/blog" className={navLinkClass}>
+          <Link href="/about" className={cn(navLinkClass, "px-3 py-2")}>
+            About
+          </Link>
+          <Link href="/blog" className={cn(navLinkClass, "px-3 py-2")}>
             Blog
           </Link>
         </nav>
 
         <div className="flex shrink-0 items-center gap-1">
-          <div className="hidden sm:block">
-            <HeaderSearch />
-          </div>
-          <Button variant="ghost" size="icon" aria-label="Search" asChild className="sm:hidden">
-            <Link href="/search">
-              <Search className="h-5 w-5" />
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Search"
+            aria-expanded={overlay === "search"}
+            onClick={() => setOverlay(overlay === "search" ? null : "search")}
+          >
+            <Search className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" aria-label="Wishlist" asChild className="hidden sm:inline-flex">
             <Link href="/account/wishlist">
@@ -88,9 +105,12 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
               <User className="h-5 w-5" />
             </Link>
           </Button>
-          <CartIconButton />
+          <CartIconButton onClick={() => setOverlay(overlay === "cart" ? null : "cart")} />
         </div>
       </div>
+
+      <SearchOverlay open={overlay === "search"} onOpenChange={(open) => setOverlay(open ? "search" : null)} />
+      <MiniCart open={overlay === "cart"} onOpenChange={(open) => setOverlay(open ? "cart" : null)} />
     </header>
   );
 }

@@ -7,6 +7,7 @@ import { Reveal } from "@/components/storefront/reveal";
 import { getBooksByCategory, type BookSort } from "@/lib/catalog/queries";
 import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 import { createClient } from "@/lib/supabase/server";
+import { decodeHtmlEntities } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -19,7 +20,8 @@ async function getCategory(slug: string) {
     .select("id, name, slug, description, seo_title, seo_description")
     .eq("slug", slug)
     .maybeSingle();
-  return data;
+  if (!data) return data;
+  return { ...data, name: decodeHtmlEntities(data.name), description: data.description ? decodeHtmlEntities(data.description) : data.description };
 }
 
 export async function generateMetadata({

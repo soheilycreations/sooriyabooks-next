@@ -48,10 +48,12 @@ export function CartView() {
 
   if (itemCount === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+      <div className="flex flex-col items-center gap-4 border-y py-24 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary/70">
+          <ShoppingBag className="h-6 w-6 text-accent" />
+        </div>
         <div>
-          <p className="font-heading text-xl">Your cart is empty</p>
+          <p className="font-heading text-2xl">Your cart is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Browse the collection and find something worth reading.
           </p>
@@ -67,10 +69,10 @@ export function CartView() {
     <div className="grid gap-10 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
         {items.map((item) => (
-          <div key={item.bookId} className="flex gap-4 border-b pb-6">
+          <div key={item.bookId} className="flex gap-5 border-b pb-6">
             <Link
               href={`/book/${item.slug}`}
-              className="relative aspect-[3/4] h-32 shrink-0 overflow-hidden rounded-lg bg-muted"
+              className="relative aspect-[3/4] h-32 shrink-0 overflow-hidden rounded-lg bg-muted shadow-sm ring-1 ring-border/60"
             >
               {item.coverUrl && (
                 <Image src={item.coverUrl} alt={item.title} fill sizes="96px" className="object-cover" />
@@ -78,7 +80,10 @@ export function CartView() {
             </Link>
             <div className="flex flex-1 flex-col justify-between">
               <div>
-                <Link href={`/book/${item.slug}`} className="font-heading text-base leading-snug hover:text-accent">
+                <Link
+                  href={`/book/${item.slug}`}
+                  className="font-heading text-base leading-snug tracking-tight hover:text-accent"
+                >
                   {item.title}
                 </Link>
                 <p className="mt-1 text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} each</p>
@@ -87,7 +92,7 @@ export function CartView() {
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-between">
-                <div className="flex h-9 items-center rounded-md border border-input">
+                <div className="flex h-9 items-center rounded-full border border-input">
                   <button
                     type="button"
                     aria-label="Decrease quantity"
@@ -125,10 +130,11 @@ export function CartView() {
         ))}
       </div>
 
-      <div className="h-fit rounded-lg border bg-card p-6">
+      <div className="h-fit rounded-lg border bg-card p-6 shadow-sm">
         <h2 className="font-heading text-xl">Order Summary</h2>
+        <div className="mt-3 h-px w-10 bg-accent" aria-hidden />
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-5 space-y-2">
           <label htmlFor="cart-district" className="text-sm font-medium">
             District
           </label>
@@ -183,9 +189,11 @@ export function CartView() {
             </span>
           </div>
           {shippingError && <p className="text-xs text-destructive">{shippingError}</p>}
-          <div className="flex justify-between border-t pt-2 font-heading text-base">
-            <span>Total</span>
-            <span>{formatCurrency(subtotal + (shippingRate ?? 0))}</span>
+          <div className="flex items-baseline justify-between border-t pt-3">
+            <span className="font-heading text-base">Total</span>
+            <span className="font-heading text-xl text-accent">
+              {formatCurrency(subtotal + (shippingRate ?? 0))}
+            </span>
           </div>
         </div>
 

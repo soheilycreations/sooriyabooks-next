@@ -6,13 +6,15 @@ import { Reveal } from "@/components/storefront/reveal";
 import { BOOK_CARD_SELECT_WITH_STOCK, mapBookRowToCard } from "@/lib/catalog/queries";
 import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 import { createClient } from "@/lib/supabase/server";
+import { decodeHtmlEntities } from "@/lib/utils";
 
 export const revalidate = 3600;
 
 async function getAuthor(slug: string) {
   const supabase = await createClient();
   const { data } = await supabase.from("authors").select("*").eq("slug", slug).maybeSingle();
-  return data;
+  if (!data) return data;
+  return { ...data, name: decodeHtmlEntities(data.name), bio: data.bio ? decodeHtmlEntities(data.bio) : data.bio };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

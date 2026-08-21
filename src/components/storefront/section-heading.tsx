@@ -25,14 +25,28 @@ export function SectionHeading({
     >
       <div className={cn(align === "center" && "max-w-xl")}>
         {eyebrow && (
-          <p className="mb-2 text-sm font-medium uppercase tracking-widest text-accent">{eyebrow}</p>
+          <p
+            className={cn(
+              "mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-accent",
+              align === "center" && "justify-center",
+            )}
+          >
+            <span className="h-px w-6 bg-accent" aria-hidden />
+            {eyebrow}
+          </p>
         )}
-        <h2 className="font-heading text-3xl leading-tight">{title}</h2>
+        <h2 className="font-heading text-3xl leading-tight md:text-4xl md:leading-tight">{title}</h2>
         {description && <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>}
       </div>
       {viewAllHref && (
-        <Link href={viewAllHref} className="shrink-0 text-sm font-medium text-accent hover:underline">
+        <Link
+          href={viewAllHref}
+          className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent/80"
+        >
           {viewAllLabel}
+          <span aria-hidden className="transition-transform duration-200 ease-premium group-hover:translate-x-0.5">
+            →
+          </span>
         </Link>
       )}
     </div>

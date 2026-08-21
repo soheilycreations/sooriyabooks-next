@@ -1,3 +1,5 @@
+import { decodeHtmlEntities } from "@/lib/utils";
+
 export interface NavCategory {
   name: string;
   slug: string;
@@ -19,7 +21,7 @@ export function selectNavCategories(categories: NavCategory[], limit: number): N
     if (key === "uncategorized" || category.slug === "uncategorized") continue;
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(category);
+    result.push({ ...category, name: decodeHtmlEntities(category.name) });
     if (result.length >= limit) break;
   }
 

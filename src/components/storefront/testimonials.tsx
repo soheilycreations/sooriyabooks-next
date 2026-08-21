@@ -24,21 +24,31 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
   return (
-    <section className="container py-16 md:py-24">
-      <SectionHeading eyebrow="Trusted island-wide" title="What readers say" align="center" />
-      <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
-        {TESTIMONIALS.map((t, i) => (
-          <Reveal key={t.name} index={i}>
-            <figure className="h-full rounded-lg border bg-card p-6">
-              <blockquote className="font-heading text-lg leading-relaxed text-foreground/90">
-                &ldquo;{t.quote}&rdquo;
-              </blockquote>
-              <figcaption className="mt-4 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{t.name}</span> — {t.role}
-              </figcaption>
-            </figure>
-          </Reveal>
-        ))}
+    <section className="border-t bg-secondary/30">
+      <div className="container py-20 md:py-28">
+        <SectionHeading eyebrow="Trusted island-wide" title="What readers say" align="center" />
+        <div className="mx-auto grid max-w-4xl divide-y md:grid-cols-2 md:divide-x md:divide-y-0">
+          {TESTIMONIALS.map((t, i) => (
+            <Reveal key={t.name} index={i}>
+              <figure className="relative flex h-full flex-col px-2 py-8 md:px-10 md:py-2">
+                <span
+                  aria-hidden
+                  className="select-none font-heading text-6xl leading-none text-accent/25"
+                >
+                  &ldquo;
+                </span>
+                <blockquote className="-mt-4 font-heading text-lg leading-relaxed text-foreground/90 md:text-xl">
+                  {t.quote}
+                </blockquote>
+                <figcaption className="mt-5 flex items-center gap-2 text-sm">
+                  <span className="h-px w-5 bg-accent" aria-hidden />
+                  <span className="font-medium text-foreground">{t.name}</span>
+                  <span className="text-muted-foreground">— {t.role}</span>
+                </figcaption>
+              </figure>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );

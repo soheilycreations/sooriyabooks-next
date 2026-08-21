@@ -40,3 +40,37 @@ export function formatDate(date: string | Date) {
 export function sanitizeSearchTerm(input: string): string {
   return input.replace(/[,()*]/g, "").trim().slice(0, 100);
 }
+
+const HTML_ENTITY_MAP: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  "#039": "'",
+  nbsp: " ",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  ndash: "–",
+  mdash: "—",
+  hellip: "…",
+};
+
+/**
+ * Some catalog content (categories, authors, publishers, book titles/
+ * descriptions) was migrated from the legacy WordPress/WooCommerce site
+ * with HTML entities left un-decoded in the stored text (e.g. a category
+ * literally named "Academic &amp; Research" in the database). Decoding at
+ * render time fixes this without touching the underlying data.
+ */
+export function decodeHtmlEntities(input: string): string {
+  return input.replace(/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+\d*);/g, (match, entity: string) => {
+    if (entity[0] === "#") {
+      const code = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+      return Number.isNaN(code) ? match : String.fromCodePoint(code);
+    }
+    return HTML_ENTITY_MAP[entity] ?? match;
+  });
+}

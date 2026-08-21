@@ -9,9 +9,12 @@ async function getTopNavCategories() {
     .select("name, slug")
     .is("parent_id", null)
     .order("sort_order")
-    .limit(20); // generous buffer — selectNavCategories dedupes/filters down to the real nav count
+    .limit(80); // covers every top-level row (63 today) — selectNavCategories dedupes/filters it down
 
-  return selectNavCategories(data ?? [], 6);
+  // The mega menu can comfortably hold more than the old 6-link top bar —
+  // capped at 24 so the panel stays a clean, scannable set of columns
+  // rather than every WooCommerce-import category ever created.
+  return selectNavCategories(data ?? [], 24);
 }
 
 export async function Header() {

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { selectNavCategories } from "@/lib/catalog/nav-categories";
+import { decodeHtmlEntities, sanitizeSearchTerm } from "@/lib/utils";
 
 export interface BookCardData {
   id: string;
@@ -48,6 +49,30 @@ export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
     .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
     .eq("is_new_arrival", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return (data ?? []).map(mapBookRowToCard);
+}
+
+/**
+ * Same filter shape as the /search page (title/isbn/sku ilike, active only)
+ * — factored out so the header's live search overlay and the full search
+ * page query the catalog identically instead of each hand-rolling its own
+ * filter. Empty/blank terms return [] rather than the newest N books, since
+ * an overlay-preview list showing "no query, most recent 8" would read as a
+ * broken/random result set to someone who hasn't typed anything yet.
+ */
+export async function searchBooksPreview(term: string, limit = 8): Promise<BookCardData[]> {
+  const cleaned = sanitizeSearchTerm(term);
+  if (!cleaned) return [];
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("books")
+    .select(BOOK_CARD_SELECT_WITH_STOCK)
+    .eq("is_active", true)
+    .or(`title.ilike.%${cleaned}%,isbn.ilike.%${cleaned}%,sku.ilike.%${cleaned}%`)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -205,9 +230,9 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
   );
 
   return categories.map((c, i) => ({
-    name: c.name,
+    name: decodeHtmlEntities(c.name),
     slug: c.slug,
-    description: c.description,
+    description: c.description ? decodeHtmlEntities(c.description) : c.description,
     imageUrl: c.image_url,
     bookCount: counts[i]?.count ?? 0,
   }));
@@ -244,11 +269,11 @@ export function mapBookRowToCard(row: any): BookCardData {
 
   return {
     id: row.id,
-    title: row.title,
+    title: decodeHtmlEntities(row.title),
     slug: row.slug,
     sellingPrice: Number(row.selling_price),
     discountPrice: row.discount_price ? Number(row.discount_price) : null,
-    authorName: row.authors?.name ?? null,
+    authorName: row.authors?.name ? decodeHtmlEntities(row.authors.name) : null,
     coverUrl: resolveCoverUrl(primary?.media_assets?.storage_path ?? null),
     inStock,
     lowStock,

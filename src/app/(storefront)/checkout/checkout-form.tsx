@@ -101,6 +101,7 @@ export function CheckoutForm() {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Delivery Address</CardTitle>
+            <div className="h-px w-10 bg-accent" aria-hidden />
             {cityLabel && (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5" />
@@ -161,6 +162,7 @@ export function CheckoutForm() {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Payment Method</CardTitle>
+            <div className="h-px w-10 bg-accent" aria-hidden />
           </CardHeader>
           <CardContent className="space-y-3">
             <label
@@ -205,9 +207,10 @@ export function CheckoutForm() {
         </Card>
       </div>
 
-      <div className="h-fit rounded-lg border bg-card p-6">
+      <div className="h-fit rounded-lg border bg-card p-6 shadow-sm">
         <h2 className="font-heading text-xl">Order Summary</h2>
-        <div className="mt-4 space-y-2 text-sm">
+        <div className="mt-3 h-px w-10 bg-accent" aria-hidden />
+        <div className="mt-5 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
@@ -216,9 +219,11 @@ export function CheckoutForm() {
             <span className="text-muted-foreground">Shipping</span>
             <span>{shippingRate != null ? formatCurrency(shippingRate) : "—"}</span>
           </div>
-          <div className="flex justify-between border-t pt-2 font-heading text-base">
-            <span>Total</span>
-            <span>{formatCurrency(subtotal + (shippingRate ?? 0))}</span>
+          <div className="flex items-baseline justify-between border-t pt-3">
+            <span className="font-heading text-base">Total</span>
+            <span className="font-heading text-xl text-accent">
+              {formatCurrency(subtotal + (shippingRate ?? 0))}
+            </span>
           </div>
         </div>
         {error && (

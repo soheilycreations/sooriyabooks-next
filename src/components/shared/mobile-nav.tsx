@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Menu, X, Heart, User, Package } from "lucide-react";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { Menu, X, Heart, User, Package, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/shared/logo";
 import type { NavCategory } from "@/lib/catalog/nav-categories";
@@ -54,33 +55,60 @@ export function MobileNav({ categories }: { categories: NavCategory[] }) {
             </DialogPrimitive.Close>
           </div>
 
-          <nav className="flex-1 overflow-y-auto px-5 py-6" aria-label="Categories">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Categories
-            </p>
-            <ul className="flex flex-col">
-              {categories.map((cat) => (
-                <li key={cat.slug}>
-                  <Link
-                    href={`/category/${cat.slug}`}
-                    onClick={() => setOpen(false)}
-                    className={drawerLinkClass}
+          <nav className="flex-1 overflow-y-auto px-5 py-6" aria-label="Site">
+            <AccordionPrimitive.Root type="single" collapsible defaultValue="shop">
+              <AccordionPrimitive.Item value="shop" className="border-b">
+                <AccordionPrimitive.Header>
+                  <AccordionPrimitive.Trigger
+                    className={cn(
+                      "flex w-full items-center justify-between py-3.5 font-heading text-lg text-foreground/90 hover:text-accent",
+                      "[&[data-state=open]>svg]:rotate-180",
+                      navLinkFocusClass,
+                    )}
                   >
-                    {cat.name}
-                  </Link>
-                </li>
-              ))}
+                    Shop
+                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 ease-premium" />
+                  </AccordionPrimitive.Trigger>
+                </AccordionPrimitive.Header>
+                <AccordionPrimitive.Content className="overflow-hidden pb-2 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                  <ul className="flex flex-col pl-1">
+                    <li>
+                      <Link href="/search" onClick={() => setOpen(false)} className="block py-2.5 text-sm text-muted-foreground hover:text-accent">
+                        All Books
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/search?new=1" onClick={() => setOpen(false)} className="block py-2.5 text-sm text-muted-foreground hover:text-accent">
+                        New Arrivals
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/search?featured=1" onClick={() => setOpen(false)} className="block py-2.5 text-sm text-muted-foreground hover:text-accent">
+                        Featured Books
+                      </Link>
+                    </li>
+                    <li className="mt-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Categories
+                    </li>
+                    {categories.map((cat) => (
+                      <li key={cat.slug}>
+                        <Link
+                          href={`/category/${cat.slug}`}
+                          onClick={() => setOpen(false)}
+                          className="block py-2.5 text-sm text-muted-foreground hover:text-accent"
+                        >
+                          {cat.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </AccordionPrimitive.Content>
+              </AccordionPrimitive.Item>
+            </AccordionPrimitive.Root>
+
+            <ul className="flex flex-col">
               <li>
-                <Link href="/search" onClick={() => setOpen(false)} className={drawerLinkClass}>
-                  All Books
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/blog"
-                  onClick={() => setOpen(false)}
-                  className={cn(drawerLinkClass, "border-b-0")}
-                >
+                <Link href="/blog" onClick={() => setOpen(false)} className={cn(drawerLinkClass, "border-b-0")}>
                   Blog
                 </Link>
               </li>
