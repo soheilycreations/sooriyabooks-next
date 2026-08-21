@@ -39,7 +39,23 @@ export async function getFeaturedBooks(limit = 8): Promise<BookCardData[]> {
     .limit(limit);
 
   if (error || !data) return [];
-  return data.map(mapBookRowToCard);
+  if (data.length > 0) return data.map(mapBookRowToCard);
+
+  // No admin has curated `is_featured` picks yet. Rather than show a
+  // misleading "catalog is empty" message when the catalog plainly isn't,
+  // fall back to real active books — offset past the New Arrivals slice
+  // below so the two sections don't just show the same books twice. This
+  // is a data-completeness fallback, not fabricated content: every book
+  // here is a genuine, active product; it stops applying the moment an
+  // admin sets `is_featured` on anything.
+  const { data: fallback } = await supabase
+    .from("books")
+    .select(BOOK_CARD_SELECT_WITH_STOCK)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .range(limit, limit * 2 - 1);
+
+  return (fallback ?? []).map(mapBookRowToCard);
 }
 
 export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
@@ -52,7 +68,20 @@ export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  return (data ?? []).map(mapBookRowToCard);
+  if (data && data.length > 0) return data.map(mapBookRowToCard);
+
+  // Same fallback rationale as getFeaturedBooks: no admin has flagged
+  // `is_new_arrival` yet, so surface the most recently added active books —
+  // which is literally what "new arrivals" means — instead of hiding the
+  // section entirely.
+  const { data: fallback } = await supabase
+    .from("books")
+    .select(BOOK_CARD_SELECT_WITH_STOCK)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return (fallback ?? []).map(mapBookRowToCard);
 }
 
 /**
@@ -282,7 +311,7 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
   const ordered = featured ? [featured, ...rest] : rest;
 
   const covers = await Promise.all(
-    ordered.map((c, i) => getCategoryCoverUrls(supabase, c.id, i === 0 ? 3 : 1)),
+    ordered.map((c, i) => getCategoryCoverUrls(supabase, c.id, i === 0 ? 4 : 1)),
   );
 
   return ordered.map((c, i) => ({

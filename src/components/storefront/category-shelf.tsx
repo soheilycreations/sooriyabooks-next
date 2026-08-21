@@ -38,18 +38,63 @@ function CategoryTile({
    *  doesn't read as identical, repeated cards. */
   tint: boolean;
 }) {
-  // Prefer a curated category image; fall back to a real book cover from
-  // the category (never a generated or stock image); only the rare
-  // category with neither gets the monogram treatment.
-  const primaryImage = category.imageUrl ?? category.coverUrls[0] ?? null;
-  const collageCovers = large ? category.coverUrls.slice(1, 3) : [];
+  // Prefer a curated category image; fall back to real book covers from the
+  // category (never a generated or stock image); only the rare category
+  // with neither gets the monogram treatment.
+  //
+  // The featured tile specifically avoids leaning on a single full-bleed
+  // cover: an individual book cover can legitimately be mostly a plain
+  // colour panel (author photo + solid title block, say), and cropped
+  // edge-to-edge with object-cover that reads as "empty" even though the
+  // image is technically filling its box correctly. A small mosaic of
+  // several real covers sidesteps that — no one cover's own design can make
+  // the whole tile look sparse.
+  const mosaicCovers = large && !category.imageUrl ? category.coverUrls.slice(0, 4) : [];
+  const primaryImage = !large || category.imageUrl ? (category.imageUrl ?? category.coverUrls[0] ?? null) : null;
 
   return (
     <Link
       href={`/category/${category.slug}`}
       className="group relative block h-full overflow-hidden rounded-xl border transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-accent/60 hover:shadow-lg"
     >
-      {primaryImage ? (
+      {mosaicCovers.length >= 2 ? (
+        <>
+          <div
+            className={cn(
+              "absolute inset-0 grid gap-0.5",
+              mosaicCovers.length >= 3 ? "grid-cols-2 grid-rows-2" : "grid-cols-2 grid-rows-1",
+            )}
+          >
+            {mosaicCovers.map((url, i) => (
+              <div
+                key={url}
+                className={cn(
+                  "relative overflow-hidden",
+                  // With 3 covers, the first spans the full left column so the
+                  // grid doesn't leave an empty fourth cell.
+                  mosaicCovers.length === 3 && i === 0 && "row-span-2",
+                )}
+              >
+                <Image
+                  src={url}
+                  alt=""
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-white/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-white/90" />
+          <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
+            <p className="font-heading text-2xl leading-snug text-white md:text-3xl">{category.name}</p>
+            <p className="mt-1 text-xs uppercase tracking-wide text-white/75">
+              {category.bookCount} {category.bookCount === 1 ? "title" : "titles"}
+            </p>
+          </div>
+        </>
+      ) : primaryImage ? (
         <>
           <Image
             src={primaryImage}
@@ -59,23 +104,6 @@ function CategoryTile({
             className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
-
-          {/* Editorial collage accent for the featured tile only — two more
-              real covers, small and slightly fanned, never covering the
-              title. Restrained on purpose: it's a garnish, not the focus. */}
-          {collageCovers.length > 0 && (
-            <div className="absolute right-4 top-4 hidden gap-2 sm:flex">
-              {collageCovers.map((url, i) => (
-                <div
-                  key={url}
-                  style={{ transform: `rotate(${i === 0 ? -4 : 5}deg)` }}
-                  className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md border-2 border-white/90 shadow-lg md:h-20 md:w-14"
-                >
-                  <Image src={url} alt="" fill sizes="56px" className="object-cover" />
-                </div>
-              ))}
-            </div>
-          )}
 
           <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-white/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-white/90" />
           <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
