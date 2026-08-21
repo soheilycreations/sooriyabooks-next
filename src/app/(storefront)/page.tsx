@@ -93,56 +93,75 @@ export default async function HomePage() {
 
 function FallbackHero() {
   return (
-    <section className="relative overflow-hidden border-b">
-      <div className="absolute inset-0 -z-10">
-        <Image
-          src="/brand/store-hero.jpg"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/10" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-      </div>
+    <section className="relative overflow-hidden border-b bg-secondary/20">
+      <div className="container py-14 md:py-20 lg:py-24">
+        <div className="grid gap-10 md:grid-cols-[45%_minmax(0,1fr)] md:items-center md:gap-14 lg:gap-20">
+          <div>
+            <Reveal>
+              <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
+                <span className="h-px w-8 bg-accent" aria-hidden />
+                Sooriya Publishers &middot; Since 1994
+              </p>
+            </Reveal>
+            <Reveal index={1}>
+              <h1 className="mt-4 max-w-lg text-balance font-heading text-4xl leading-[1.1] tracking-tight md:text-5xl lg:text-6xl lg:leading-[1.08]">
+                Discover Your Next Great Read.
+              </h1>
+            </Reveal>
+            <Reveal index={2}>
+              <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground md:text-lg">
+                Explore books from Sooriya Publishers, including fiction, non-fiction, academic,
+                children&apos;s and translated books, with delivery across Sri Lanka.
+              </p>
+            </Reveal>
+            <Reveal index={3}>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Button
+                  size="lg"
+                  variant="accent"
+                  asChild
+                  className="px-8 shadow-md shadow-accent/20 transition-transform duration-300 ease-premium hover:scale-[1.02]"
+                >
+                  <Link href="/search">Shop All Books</Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <Link href="#categories">Explore Categories</Link>
+                </Button>
+              </div>
+            </Reveal>
+          </div>
 
-      <div className="container flex min-h-[420px] flex-col items-start justify-center gap-5 py-20 md:min-h-[560px] md:py-32">
-        <Reveal>
-          <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
-            <span className="h-px w-8 bg-accent" aria-hidden />
-            Sooriya Publishers &middot; Since 1994
-          </p>
-        </Reveal>
-        <Reveal index={1}>
-          <h1 className="max-w-3xl text-balance font-heading text-5xl leading-[1.05] tracking-tight text-white md:text-7xl md:leading-[1.03]">
-            The Light of Learning
-          </h1>
-        </Reveal>
-        <Reveal index={2}>
-          <p className="max-w-md text-base leading-relaxed text-white/85 md:text-lg">
-            Discover books that inspire, educate and stay with you — delivered to your doorstep
-            across Sri Lanka.
-          </p>
-        </Reveal>
-        <Reveal index={3}>
-          <div className="mt-2 flex flex-wrap gap-3">
-            <Button
-              size="lg"
-              variant="accent"
-              asChild
-              className="px-10 shadow-lg shadow-accent/20 transition-transform duration-300 ease-premium hover:scale-[1.02]"
-            >
-              <Link href="/search">Shop the Collection</Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              asChild
-              className="border-white/40 bg-transparent text-white hover:bg-white/10"
-            >
-              <Link href="#categories">Explore Categories</Link>
-            </Button>
+          <Reveal index={1}>
+            <div className="relative mx-auto max-w-md md:max-w-none">
+              <div
+                className="absolute -inset-3 -z-10 hidden rounded-2xl border border-accent/30 md:block"
+                aria-hidden
+              />
+              <div className="relative aspect-[4/5] overflow-hidden rounded-xl shadow-xl sm:aspect-[6/5] md:aspect-[4/5]">
+                <Image
+                  src="/brand/store-hero.jpg"
+                  alt="Sooriya Publishers bookstore in Sri Lanka"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 90vw, 45vw"
+                  className="object-cover"
+                />
+              </div>
+              <div className="absolute bottom-4 left-4 rounded-lg border bg-background/95 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-5 sm:left-5 sm:px-5 sm:py-4">
+                <p className="font-heading text-base leading-none sm:text-lg">Since 1994</p>
+                <p className="mt-1 text-xs text-muted-foreground">Over three decades of publishing</p>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+
+        <Reveal index={4}>
+          <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-6 text-sm text-muted-foreground md:mt-14">
+            <span>Since 1994</span>
+            <span className="h-1 w-1 rounded-full bg-accent/60" aria-hidden />
+            <span>Authentic Books</span>
+            <span className="h-1 w-1 rounded-full bg-accent/60" aria-hidden />
+            <span>Islandwide Delivery</span>
           </div>
         </Reveal>
       </div>

@@ -8,6 +8,8 @@ import { CartIconButton } from "@/components/shared/cart-icon-button";
 import { MegaMenu } from "@/components/shared/mega-menu";
 import { SearchOverlay } from "@/components/shared/search-overlay";
 import { MiniCart } from "@/components/shared/mini-cart";
+import { WishlistDrawer } from "@/components/shared/wishlist-drawer";
+import { AccountDrawer } from "@/components/shared/account-drawer";
 import { MobileNav } from "@/components/shared/mobile-nav";
 import { Logo } from "@/components/shared/logo";
 import type { NavCategory } from "@/lib/catalog/nav-categories";
@@ -23,7 +25,7 @@ const navLinkClass = cn(
  *  a single piece of state, rather than three independent booleans, makes
  *  that mutual exclusion automatic instead of something each overlay has
  *  to remember to enforce. */
-type Overlay = "menu" | "search" | "cart" | null;
+type Overlay = "menu" | "search" | "cart" | "wishlist" | "account" | null;
 
 export function HeaderClient({ categories }: { categories: NavCategory[] }) {
   const [scrolled, setScrolled] = useState(false);
@@ -68,7 +70,12 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           </div>
         </div>
 
-        <nav aria-label="Primary" className="hidden items-center gap-1 lg:ml-8 lg:flex">
+        {/* Large flexible gap — grows/shrinks with viewport width, pushing the nav
+            and action icons together toward the right rather than centering or
+            spacing them across the whole header. */}
+        <div className="flex-1" aria-hidden />
+
+        <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
           <MegaMenu
             categories={categories}
             open={overlay === "menu"}
@@ -85,7 +92,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           </Link>
         </nav>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 lg:ml-6">
           <Button
             variant="ghost"
             size="icon"
@@ -95,15 +102,25 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
           >
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Wishlist" asChild className="hidden sm:inline-flex">
-            <Link href="/account/wishlist">
-              <Heart className="h-5 w-5" />
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Wishlist"
+            aria-expanded={overlay === "wishlist"}
+            className="hidden sm:inline-flex"
+            onClick={() => setOverlay(overlay === "wishlist" ? null : "wishlist")}
+          >
+            <Heart className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Account" asChild className="hidden sm:inline-flex">
-            <Link href="/account">
-              <User className="h-5 w-5" />
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Account"
+            aria-expanded={overlay === "account"}
+            className="hidden sm:inline-flex"
+            onClick={() => setOverlay(overlay === "account" ? null : "account")}
+          >
+            <User className="h-5 w-5" />
           </Button>
           <CartIconButton onClick={() => setOverlay(overlay === "cart" ? null : "cart")} />
         </div>
@@ -111,6 +128,8 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
 
       <SearchOverlay open={overlay === "search"} onOpenChange={(open) => setOverlay(open ? "search" : null)} />
       <MiniCart open={overlay === "cart"} onOpenChange={(open) => setOverlay(open ? "cart" : null)} />
+      <WishlistDrawer open={overlay === "wishlist"} onOpenChange={(open) => setOverlay(open ? "wishlist" : null)} />
+      <AccountDrawer open={overlay === "account"} onOpenChange={(open) => setOverlay(open ? "account" : null)} />
     </header>
   );
 }
