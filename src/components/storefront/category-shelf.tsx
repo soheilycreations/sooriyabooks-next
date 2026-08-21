@@ -6,12 +6,12 @@ import { Reveal } from "@/components/storefront/reveal";
 import { cn } from "@/lib/utils";
 
 /**
- * Editorial "library shelf" grid — the first category gets a large tile,
+ * Editorial "library shelf" grid — the featured category gets a large tile,
  * the rest fill in around it (`grid-flow-dense`), so it doesn't read as a
- * repeated row of identical cards. Categories with a real `image_url` get a
- * photographic tile; ones without (most of this catalog, per the WooCommerce
- * import) get a typography-forward tile instead — the variation is driven by
- * what data actually exists, not styled arbitrarily.
+ * repeated row of identical cards. Every tile's imagery is real: a curated
+ * `category.imageUrl` when the admin set one, otherwise actual book covers
+ * from that category (`coverUrls`, from getCategoryShelfData), and only the
+ * rare category with neither falls back to the typography-forward tile.
  */
 export function CategoryShelf({ categories }: { categories: CategoryShelfEntry[] }) {
   if (categories.length === 0) return null;
@@ -34,25 +34,49 @@ function CategoryTile({
 }: {
   category: CategoryShelfEntry;
   large: boolean;
-  /** Alternates the non-photo tile's background so a row of typography-only
-   *  tiles doesn't read as identical, repeated cards. */
+  /** Alternates the typography-only tile's background so a row of them
+   *  doesn't read as identical, repeated cards. */
   tint: boolean;
 }) {
+  // Prefer a curated category image; fall back to a real book cover from
+  // the category (never a generated or stock image); only the rare
+  // category with neither gets the monogram treatment.
+  const primaryImage = category.imageUrl ?? category.coverUrls[0] ?? null;
+  const collageCovers = large ? category.coverUrls.slice(1, 3) : [];
+
   return (
     <Link
       href={`/category/${category.slug}`}
       className="group relative block h-full overflow-hidden rounded-xl border transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-accent/60 hover:shadow-lg"
     >
-      {category.imageUrl ? (
+      {primaryImage ? (
         <>
           <Image
-            src={category.imageUrl}
+            src={primaryImage}
             alt=""
             fill
             sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
             className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
+
+          {/* Editorial collage accent for the featured tile only — two more
+              real covers, small and slightly fanned, never covering the
+              title. Restrained on purpose: it's a garnish, not the focus. */}
+          {collageCovers.length > 0 && (
+            <div className="absolute right-4 top-4 hidden gap-2 sm:flex">
+              {collageCovers.map((url, i) => (
+                <div
+                  key={url}
+                  style={{ transform: `rotate(${i === 0 ? -4 : 5}deg)` }}
+                  className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md border-2 border-white/90 shadow-lg md:h-20 md:w-14"
+                >
+                  <Image src={url} alt="" fill sizes="56px" className="object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+
           <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-white/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-white/90" />
           <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
             <p className={cn("font-heading leading-snug text-white", large ? "text-2xl md:text-3xl" : "text-lg")}>

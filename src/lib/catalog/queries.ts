@@ -199,9 +199,52 @@ export interface CategoryShelfEntry {
   description: string | null;
   imageUrl: string | null;
   bookCount: number;
+  /** Real cover URLs of active books in this category (0-3) — used to fill
+   *  the tile with actual product imagery instead of an invented one.
+   *  Empty when the category currently has no covered books. */
+  coverUrls: string[];
 }
 
-/** Top-level categories for the homepage "shelf" — real counts, real images where set, no invented data. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getCategoryCoverUrls(supabase: any, categoryId: string, limit: number): Promise<string[]> {
+  // No .order() here on purpose: with book_categories as the base table,
+  // ordering by an embedded books.* column silently no-ops on this
+  // PostgREST version (see getBooksByCategory's comment for the same
+  // finding) — the base table itself has nothing meaningful to sort by,
+  // so this intentionally takes whatever the join returns first.
+  const { data } = await supabase
+    .from("book_categories")
+    .select(
+      `books!inner ( id, is_active, book_images ( is_primary, sort_order, media_assets ( storage_path ) ) )`,
+    )
+    .eq("category_id", categoryId)
+    .eq("books.is_active", true)
+    .limit(limit * 4); // overfetch — some books in the join have no image row
+
+  const urls: string[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of (data ?? []) as any[]) {
+    if (urls.length >= limit) break;
+    const images = (row.books?.book_images ?? []) as Array<{
+      is_primary: boolean;
+      sort_order: number;
+      media_assets: { storage_path: string } | null;
+    }>;
+    const primary = [...images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)[0];
+    const url = resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
+/**
+ * Top-level categories for the homepage "shelf" — real counts and real book
+ * covers, no invented data. "Sooriya Books" (the publisher's own imprint) is
+ * the featured tile when it exists; the rest are the highest-volume real
+ * categories by live book count, not import sort_order. Falls back to the
+ * highest-count category as the feature if "Sooriya Books" isn't present,
+ * so the layout still works on a catalog that doesn't have it.
+ */
 export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntry[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -209,9 +252,9 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
     .select("id, name, slug, description, image_url")
     .is("parent_id", null)
     .order("sort_order")
-    .limit(20);
+    .limit(80);
 
-  const categories = selectNavCategories(data ?? [], limit) as Array<{
+  const candidates = selectNavCategories(data ?? [], 40) as Array<{
     id: string;
     name: string;
     slug: string;
@@ -220,7 +263,7 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
   }>;
 
   const counts = await Promise.all(
-    categories.map((c) =>
+    candidates.map((c) =>
       supabase
         .from("book_categories")
         .select("books!inner(id)", { count: "exact", head: true })
@@ -229,12 +272,26 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
     ),
   );
 
-  return categories.map((c, i) => ({
+  const withCounts = candidates.map((c, i) => ({ ...c, bookCount: counts[i]?.count ?? 0 }));
+  const byCountDesc = [...withCounts].sort((a, b) => b.bookCount - a.bookCount);
+
+  const featuredIndex = withCounts.findIndex((c) => c.name.trim().toLowerCase() === "sooriya books");
+  const featured = featuredIndex >= 0 ? withCounts[featuredIndex] : byCountDesc[0];
+  const rest = byCountDesc.filter((c) => c.id !== featured?.id).slice(0, Math.max(0, limit - 1));
+
+  const ordered = featured ? [featured, ...rest] : rest;
+
+  const covers = await Promise.all(
+    ordered.map((c, i) => getCategoryCoverUrls(supabase, c.id, i === 0 ? 3 : 1)),
+  );
+
+  return ordered.map((c, i) => ({
     name: decodeHtmlEntities(c.name),
     slug: c.slug,
     description: c.description ? decodeHtmlEntities(c.description) : c.description,
     imageUrl: c.image_url,
-    bookCount: counts[i]?.count ?? 0,
+    bookCount: c.bookCount,
+    coverUrls: covers[i] ?? [],
   }));
 }
 
