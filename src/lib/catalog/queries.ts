@@ -228,9 +228,10 @@ export interface CategoryShelfEntry {
   description: string | null;
   imageUrl: string | null;
   bookCount: number;
-  /** Real cover URLs of active books in this category (0-3) — used to fill
-   *  the tile with actual product imagery instead of an invented one.
-   *  Empty when the category currently has no covered books. */
+  /** Real cover URLs of active books in this category (0-4), deduped across
+   *  every category on the shelf — used to fill the tile with actual
+   *  product imagery instead of an invented one. Empty when the category
+   *  currently has no covered books. */
   coverUrls: string[];
 }
 
@@ -310,9 +311,22 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
 
   const ordered = featured ? [featured, ...rest] : rest;
 
-  const covers = await Promise.all(
-    ordered.map((c, i) => getCategoryCoverUrls(supabase, c.id, i === 0 ? 4 : 1)),
-  );
+  // Overfetch raw candidates per category, then dedupe globally in order
+  // (featured tile first) so the same book's cover — a book can legitimately
+  // sit in more than one category — never shows up in two different tiles.
+  const rawCovers = await Promise.all(ordered.map((c) => getCategoryCoverUrls(supabase, c.id, 8)));
+  const usedUrls = new Set<string>();
+  const covers = rawCovers.map((urls, i) => {
+    const wanted = i === 0 ? 4 : 1;
+    const picked: string[] = [];
+    for (const url of urls) {
+      if (picked.length >= wanted) break;
+      if (usedUrls.has(url)) continue;
+      usedUrls.add(url);
+      picked.push(url);
+    }
+    return picked;
+  });
 
   return ordered.map((c, i) => ({
     name: decodeHtmlEntities(c.name),

@@ -27,6 +27,30 @@ export function CategoryShelf({ categories }: { categories: CategoryShelfEntry[]
   );
 }
 
+/**
+ * A real book cover, shown whole (never cropped into a plain panel of its
+ * own design) with a softly blurred, scaled-up copy of the same cover
+ * filling the space around it — the same "blurred backdrop" treatment
+ * streaming apps use for mismatched-aspect-ratio artwork. Keeps every tile
+ * looking intentionally filled regardless of a given cover's own aspect
+ * ratio or how much flat colour it has baked in, without ever cropping
+ * content off or padding with a flat colour of our own.
+ */
+function BookCoverImage({ url, sizes }: { url: string; sizes: string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <Image src={url} alt="" fill sizes={sizes} aria-hidden className="scale-125 object-cover opacity-70 blur-2xl" />
+      <Image
+        src={url}
+        alt=""
+        fill
+        sizes={sizes}
+        className="object-contain transition-transform duration-500 ease-premium group-hover:scale-105"
+      />
+    </div>
+  );
+}
+
 function CategoryTile({
   category,
   large,
@@ -50,7 +74,9 @@ function CategoryTile({
   // several real covers sidesteps that — no one cover's own design can make
   // the whole tile look sparse.
   const mosaicCovers = large && !category.imageUrl ? category.coverUrls.slice(0, 4) : [];
-  const primaryImage = !large || category.imageUrl ? (category.imageUrl ?? category.coverUrls[0] ?? null) : null;
+  const curatedImage = category.imageUrl;
+  const fallbackCover = !large ? (category.coverUrls[0] ?? null) : null;
+  const primaryImage = curatedImage ?? fallbackCover;
 
   return (
     <Link
@@ -75,13 +101,7 @@ function CategoryTile({
                   mosaicCovers.length === 3 && i === 0 && "row-span-2",
                 )}
               >
-                <Image
-                  src={url}
-                  alt=""
-                  fill
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                  className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
-                />
+                <BookCoverImage url={url} sizes="(max-width: 768px) 50vw, 25vw" />
               </div>
             ))}
           </div>
@@ -96,13 +116,20 @@ function CategoryTile({
         </>
       ) : primaryImage ? (
         <>
-          <Image
-            src={primaryImage}
-            alt=""
-            fill
-            sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
-            className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
-          />
+          {curatedImage ? (
+            <Image
+              src={primaryImage}
+              alt=""
+              fill
+              sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
+              className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
+            />
+          ) : (
+            <BookCoverImage
+              url={primaryImage}
+              sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
 
           <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-white/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-white/90" />
