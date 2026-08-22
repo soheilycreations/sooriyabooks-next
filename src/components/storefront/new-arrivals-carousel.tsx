@@ -1,16 +1,25 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "@/components/storefront/product-card";
 import { Reveal } from "@/components/storefront/reveal";
 import type { BookCardData } from "@/lib/catalog/queries";
 
+const CARD_SCROLL_DISTANCE = 248;
+const AUTOPLAY_INTERVAL_MS = 4000;
+
 /**
  * Same scroll-snap carousel the homepage already used for New Arrivals —
- * this only adds desktop prev/next controls around it (native touch
- * scrolling still works on mobile). No data/props beyond what the section
- * already passed in.
+ * this adds desktop prev/next controls (native touch scrolling still works
+ * on mobile) plus a looping autoplay: it advances one card at a time and
+ * jumps back to the start once it runs out of room, so it reads as a
+ * continuous loop rather than stopping dead at the last book. Paused while
+ * the pointer or keyboard focus is anywhere inside the carousel — manual
+ * browsing always wins over autoplay — and skipped entirely for
+ * prefers-reduced-motion. No data/props beyond what the section already
+ * passed in.
  */
 export function NewArrivalsCarousel({
   books,
@@ -20,13 +29,32 @@ export function NewArrivalsCarousel({
   wishlistIds: Set<string>;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   function scrollByCard(direction: 1 | -1) {
-    scrollerRef.current?.scrollBy({ left: direction * 248, behavior: "smooth" });
+    scrollerRef.current?.scrollBy({ left: direction * CARD_SCROLL_DISTANCE, behavior: "smooth" });
   }
 
+  useEffect(() => {
+    if (reduceMotion || paused || books.length <= 1) return;
+    const id = setInterval(() => {
+      const el = scrollerRef.current;
+      if (!el) return;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+      el.scrollTo({ left: atEnd ? 0 : el.scrollLeft + CARD_SCROLL_DISTANCE, behavior: "smooth" });
+    }, AUTOPLAY_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [reduceMotion, paused, books.length]);
+
   return (
-    <div className="group/carousel relative">
+    <div
+      className="group/carousel relative"
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
       <div
         ref={scrollerRef}
         className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
