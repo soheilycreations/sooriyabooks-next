@@ -135,7 +135,7 @@ function FeaturedCategoryCard({ category }: { category: CategoryShelfEntry }) {
                   url={covers[0]}
                   sizes="220px"
                   priority
-                  className="h-full shadow-xl transition-transform duration-500 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.03]"
+                  className="h-full shadow-xl transition-transform duration-500 ease-premium group-hover:-translate-y-3 group-hover:scale-[1.07] group-hover:shadow-2xl"
                 />
               </div>
             )}
@@ -234,7 +234,7 @@ function CategoryCard({
           <CoverFrame
             url={category.imageUrl}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className="h-full shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.03]"
+            className="h-full shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.07] group-hover:shadow-2xl"
           />
         </div>
         <CardMeta category={category} />
@@ -259,18 +259,25 @@ function CategoryCard({
     <Link href={`/category/${category.slug}`} className={cn(cardShell, bg)}>
       {variant === 0 && (
         <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+          {covers[2] && (
+            <CoverFrame
+              url={covers[2]}
+              sizes="100px"
+              className="z-[5] -mr-10 h-[62%] rotate-6 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1 group-hover:rotate-[10deg]"
+            />
+          )}
           {covers[1] && (
             <CoverFrame
               url={covers[1]}
               sizes="120px"
-              className="z-10 -mr-7 h-[75%] -rotate-3 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1 group-hover:-rotate-6"
+              className="z-10 -mr-7 h-[75%] -rotate-3 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:-rotate-6 group-hover:scale-[1.04]"
             />
           )}
           <CoverFrame
             url={primaryCover}
             sizes="140px"
             priority
-            className="relative z-20 h-[92%] rotate-2 shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.03]"
+            className="relative z-20 h-[92%] rotate-2 shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.08] group-hover:shadow-2xl"
           />
         </div>
       )}
@@ -281,31 +288,39 @@ function CategoryCard({
             url={primaryCover}
             sizes="150px"
             priority
-            className="relative z-20 h-[92%] shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.03]"
+            className="relative z-20 h-[92%] shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.08] group-hover:shadow-2xl"
           />
           {covers[1] && (
             <CoverFrame
               url={covers[1]}
               sizes="90px"
-              className="absolute bottom-0 right-2 z-10 h-[52%] rotate-[6deg] shadow-md transition-transform duration-300 ease-premium group-hover:-translate-y-1 md:right-3"
+              className="absolute bottom-0 right-2 z-10 h-[52%] rotate-[6deg] shadow-md transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.05] md:right-3"
+            />
+          )}
+          {covers[2] && (
+            <CoverFrame
+              url={covers[2]}
+              sizes="70px"
+              className="absolute left-1 top-1 z-10 h-[36%] -rotate-[8deg] shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1"
             />
           )}
         </div>
       )}
 
       {variant === 2 && (
-        <div className="relative flex min-h-0 flex-1 items-end justify-center gap-2 overflow-hidden pb-1">
-          {covers.slice(0, 3).map((url, idx) => (
+        <div className="relative flex min-h-0 flex-1 items-end justify-center gap-1.5 overflow-hidden pb-1">
+          {covers.slice(0, 4).map((url, idx) => (
             <CoverFrame
               key={url}
               url={url}
-              sizes="100px"
+              sizes="90px"
               priority={idx === 0}
               className={cn(
-                "shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1",
-                idx === 0 && "h-[68%] -rotate-3",
-                idx === 1 && "h-[80%] rotate-1",
-                idx === 2 && "h-[72%] rotate-3",
+                "shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.06] group-hover:shadow-lg",
+                idx === 0 && "h-[64%] -rotate-3",
+                idx === 1 && "h-[78%] rotate-1",
+                idx === 2 && "h-[70%] rotate-3",
+                idx === 3 && "h-[58%] -rotate-2",
               )}
             />
           ))}

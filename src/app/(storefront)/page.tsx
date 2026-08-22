@@ -61,16 +61,20 @@ export default async function HomePage() {
       )}
 
       {categories.length > 0 && (
-        // Tighter top padding than the sections below — the hero already
-        // ends on a border, so this reads as a direct continuation of it
-        // rather than a new section separated by a block of empty space.
-        <section id="categories" className="container pb-6 pt-8 md:pb-10 md:pt-10">
-          <SectionHeading
-            eyebrow="Browse the shelves"
-            title="Find your next read"
-            description="A curated slice of the collection — from schoolbooks to literature, translations to research."
-          />
-          <CategoryShelf categories={categories} />
+        // A faint warm-gray field behind the whole section — plain white
+        // read as a stark jump against the cream/tinted cards inside it.
+        <section id="categories" className="bg-secondary/25">
+          {/* Tighter top padding than the sections below — the hero already
+              ends on a border, so this reads as a direct continuation of it
+              rather than a new section separated by a block of empty space. */}
+          <div className="container pb-6 pt-8 md:pb-10 md:pt-10">
+            <SectionHeading
+              eyebrow="Browse the shelves"
+              title="Find your next read"
+              description="A curated slice of the collection — from schoolbooks to literature, translations to research."
+            />
+            <CategoryShelf categories={categories} />
+          </div>
         </section>
       )}
 
