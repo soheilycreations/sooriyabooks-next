@@ -10,7 +10,7 @@ import { Reveal } from "@/components/storefront/reveal";
 export function BrandStory({ stats }: { stats: StoreStats }) {
   return (
     <section className="border-t">
-      <div className="container grid items-center gap-12 py-20 md:grid-cols-2 md:gap-20 md:py-32">
+      <div className="container grid items-center gap-12 py-14 md:grid-cols-2 md:gap-20 md:py-20">
         <Reveal className="order-2 md:order-1">
           <p className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
             <span className="h-px w-8 bg-accent" aria-hidden />

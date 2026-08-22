@@ -63,7 +63,7 @@ export default async function HomePage() {
       {categories.length > 0 && (
         // A faint warm-gray field behind the whole section — plain white
         // read as a stark jump against the cream/tinted cards inside it.
-        <section id="categories" className="bg-secondary/25">
+        <section id="categories" className="bg-secondary/40">
           {/* Tighter top padding than the sections below — the hero already
               ends on a border, so this reads as a direct continuation of it
               rather than a new section separated by a block of empty space. */}
@@ -79,7 +79,7 @@ export default async function HomePage() {
       )}
 
       {featured.length > 0 && (
-        <section className="container py-16 md:py-28">
+        <section className="container py-10 md:py-16">
           <SectionHeading eyebrow="Handpicked" title="Featured Books" viewAllHref="/search?featured=1" />
           <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
             {featured.map((book, i) => (
@@ -92,7 +92,7 @@ export default async function HomePage() {
       )}
 
       {newArrivals.length > 0 && (
-        <section className="border-y bg-secondary/30 py-16 md:py-28">
+        <section className="border-y bg-secondary/40 py-10 md:py-16">
           <div className="container">
             <SectionHeading eyebrow="Just in" title="New Arrivals" viewAllHref="/search?new=1" />
           </div>

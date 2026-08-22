@@ -11,7 +11,7 @@ export function FinalCta() {
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
       />
-      <div className="container py-24 text-center md:py-32">
+      <div className="container py-16 text-center md:py-24">
         <Reveal>
           <p className="mb-4 flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
             <span className="h-px w-8 bg-accent" aria-hidden />
