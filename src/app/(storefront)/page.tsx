@@ -13,6 +13,7 @@ import { NewArrivalsCarousel } from "@/components/storefront/new-arrivals-carous
 import {
   getFeaturedBooks,
   getNewArrivals,
+  getBooksByCategory,
   getCategoryShelfData,
   getStoreStats,
 } from "@/lib/catalog/queries";
@@ -22,9 +23,12 @@ import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 export const revalidate = 3600; // ISR: catalog/homepage changes invalidate via revalidateTag in admin actions
 
 export default async function HomePage() {
-  const [featured, newArrivals, slides, categories, stats, wishlistIds] = await Promise.all([
+  const [featured, newArrivals, sooriyaBooks, slides, categories, stats, wishlistIds] = await Promise.all([
     getFeaturedBooks(8),
     getNewArrivals(8),
+    // Real books from the publisher's own "Sooriya Books" imprint category —
+    // same slug the category shelf's featured tile links to.
+    getBooksByCategory("sooriya-books", { limit: 14 }),
     getActiveHeroSlides(),
     // 9, not 10: the shelf's featured tile spans 2x2 in a 4-col grid (4
     // cells), so the remaining tiles must be a multiple of 4 to tile evenly
@@ -40,11 +44,27 @@ export default async function HomePage() {
     <div>
       {slides.length > 0 ? <HeroSlider slides={slides} /> : <FallbackHero />}
 
+      {sooriyaBooks.books.length > 0 && (
+        // Same tight top padding as the categories section below — sits
+        // directly against the hero, not separated by empty space — and a
+        // small bottom padding since the categories section right after it
+        // already brings its own top padding.
+        <section className="container pb-2 pt-8 md:pb-4 md:pt-10">
+          <SectionHeading
+            eyebrow="Since 1994"
+            title="Sooriya Books"
+            viewAllHref="/category/sooriya-books"
+            viewAllLabel="See all books"
+          />
+          <NewArrivalsCarousel books={sooriyaBooks.books} wishlistIds={wishlistIds} />
+        </section>
+      )}
+
       {categories.length > 0 && (
         // Tighter top padding than the sections below — the hero already
         // ends on a border, so this reads as a direct continuation of it
         // rather than a new section separated by a block of empty space.
-        <section id="categories" className="container pb-16 pt-8 md:pb-28 md:pt-10">
+        <section id="categories" className="container pb-6 pt-8 md:pb-10 md:pt-10">
           <SectionHeading
             eyebrow="Browse the shelves"
             title="Find your next read"
