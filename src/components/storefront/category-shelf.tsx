@@ -1,173 +1,301 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import type { CategoryShelfEntry } from "@/lib/catalog/queries";
 import { Reveal } from "@/components/storefront/reveal";
 import { cn } from "@/lib/utils";
 
 /**
- * Editorial "library shelf" grid — the featured category gets a large tile,
- * the rest fill in around it (`grid-flow-dense`), so it doesn't read as a
- * repeated row of identical cards. Every tile's imagery is real: a curated
- * `category.imageUrl` when the admin set one, otherwise actual book covers
- * from that category (`coverUrls`, from getCategoryShelfData), and only the
- * rare category with neither falls back to the typography-forward tile.
+ * Editorial "library shelf" grid — the featured category gets a large,
+ * physical-book composition; the rest fill in around it (`grid-flow-dense`)
+ * cycling through three distinct editorial layouts (overlapping pair,
+ * dominant + floating, mini shelf) so the row never reads as repeated,
+ * identical cards. Every cover shown is real: `getCategoryShelfData`
+ * supplies actual book covers from Supabase (or an admin-curated
+ * `imageUrl`), never placeholder or generated art. Deliberately avoids a
+ * full-bleed cover + dark gradient + overlaid title anywhere in this
+ * section — covers are shown as bordered, shadowed objects on a cream
+ * field, not stretched backgrounds.
  */
 export function CategoryShelf({ categories }: { categories: CategoryShelfEntry[] }) {
   if (categories.length === 0) return null;
 
   return (
-    <div className="grid grid-flow-dense auto-rows-[170px] grid-cols-2 gap-5 sm:auto-rows-[190px] md:grid-cols-4 md:auto-rows-[210px]">
+    <div className="grid grid-flow-dense auto-rows-[190px] grid-cols-2 gap-3 sm:auto-rows-[210px] md:grid-cols-4 md:gap-4 md:auto-rows-[230px]">
       {categories.map((category, i) => (
         <Reveal key={category.slug} index={i} className={i === 0 ? "col-span-2 row-span-2" : undefined}>
-          <CategoryTile category={category} large={i === 0} tint={i % 2 === 1} />
+          {i === 0 ? (
+            <FeaturedCategoryCard category={category} />
+          ) : (
+            <CategoryCard category={category} tint={i % 2 === 1} variant={((i - 1) % 3) as 0 | 1 | 2} />
+          )}
         </Reveal>
       ))}
     </div>
   );
 }
 
-/**
- * A real book cover, shown whole (never cropped into a plain panel of its
- * own design) with a softly blurred, scaled-up copy of the same cover
- * filling the space around it — the same "blurred backdrop" treatment
- * streaming apps use for mismatched-aspect-ratio artwork. Keeps every tile
- * looking intentionally filled regardless of a given cover's own aspect
- * ratio or how much flat colour it has baked in, without ever cropping
- * content off or padding with a flat colour of our own.
- */
-function BookCoverImage({ url, sizes }: { url: string; sizes: string }) {
+/** A single cover, framed like a physical book — white border, soft shadow — never stretched. */
+function CoverFrame({
+  url,
+  className,
+  sizes,
+  priority,
+}: {
+  url: string;
+  className?: string;
+  sizes: string;
+  priority?: boolean;
+}) {
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      <Image src={url} alt="" fill sizes={sizes} aria-hidden className="scale-125 object-cover opacity-70 blur-2xl" />
-      <Image
-        src={url}
-        alt=""
-        fill
-        sizes={sizes}
-        className="object-contain transition-transform duration-500 ease-premium group-hover:scale-105"
-      />
+    <div className={cn("relative aspect-[2/3] overflow-hidden rounded-sm border-2 border-white shadow-md", className)}>
+      <Image src={url} alt="" fill sizes={sizes} className="object-cover" priority={priority} />
     </div>
   );
 }
 
-function CategoryTile({
-  category,
-  large,
-  tint,
-}: {
-  category: CategoryShelfEntry;
-  large: boolean;
-  /** Alternates the typography-only tile's background so a row of them
-   *  doesn't read as identical, repeated cards. */
-  tint: boolean;
-}) {
-  // Prefer a curated category image; fall back to real book covers from the
-  // category (never a generated or stock image); only the rare category
-  // with neither gets the monogram treatment.
-  //
-  // The featured tile specifically avoids leaning on a single full-bleed
-  // cover: an individual book cover can legitimately be mostly a plain
-  // colour panel (author photo + solid title block, say), and cropped
-  // edge-to-edge with object-cover that reads as "empty" even though the
-  // image is technically filling its box correctly. A small mosaic of
-  // several real covers sidesteps that — no one cover's own design can make
-  // the whole tile look sparse.
-  const mosaicCovers = large && !category.imageUrl ? category.coverUrls.slice(0, 4) : [];
-  const curatedImage = category.imageUrl;
-  const fallbackCover = !large ? (category.coverUrls[0] ?? null) : null;
-  const primaryImage = curatedImage ?? fallbackCover;
+/**
+ * The large "Sooriya books" feature card — real covers displayed like books
+ * fanned on an editorial surface (one dominant and upright, two or three
+ * more layered behind it at a few degrees of tilt), on a warm cream field.
+ * Title, count and CTA sit in their own clean strip; nothing is stamped
+ * over the imagery.
+ */
+function FeaturedCategoryCard({ category }: { category: CategoryShelfEntry }) {
+  const covers = category.imageUrl ? [] : category.coverUrls.slice(0, 4);
 
   return (
     <Link
       href={`/category/${category.slug}`}
-      className="group relative block h-full overflow-hidden rounded-xl border transition-all duration-300 ease-premium hover:-translate-y-1 hover:border-accent/60 hover:shadow-lg"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-brand-50/70 transition-shadow duration-300 ease-premium hover:shadow-xl"
     >
-      {mosaicCovers.length >= 2 ? (
-        <>
-          <div
-            className={cn(
-              "absolute inset-0 grid gap-0.5",
-              mosaicCovers.length >= 3 ? "grid-cols-2 grid-rows-2" : "grid-cols-2 grid-rows-1",
-            )}
-          >
-            {mosaicCovers.map((url, i) => (
-              <div
-                key={url}
-                className={cn(
-                  "relative overflow-hidden",
-                  // With 3 covers, the first spans the full left column so the
-                  // grid doesn't leave an empty fourth cell.
-                  mosaicCovers.length === 3 && i === 0 && "row-span-2",
-                )}
-              >
-                <BookCoverImage url={url} sizes="(max-width: 768px) 50vw, 25vw" />
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-white/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-white/90" />
-          <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
-            <p className="font-heading text-2xl leading-snug text-white md:text-3xl">{category.name}</p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-white/75">
-              {category.bookCount} {category.bookCount === 1 ? "title" : "titles"}
-            </p>
-          </div>
-        </>
-      ) : primaryImage ? (
-        <>
-          {curatedImage ? (
-            <Image
-              src={primaryImage}
-              alt=""
-              fill
-              sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
-              className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
-            />
-          ) : (
-            <BookCoverImage
-              url={primaryImage}
-              sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
-
-          <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-white/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-white/90" />
-          <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
-            <p className={cn("font-heading leading-snug text-white", large ? "text-2xl md:text-3xl" : "text-lg")}>
-              {category.name}
-            </p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-white/75">
-              {category.bookCount} {category.bookCount === 1 ? "title" : "titles"}
-            </p>
-          </div>
-        </>
-      ) : (
-        <div
-          className={cn(
-            "relative flex h-full flex-col justify-end overflow-hidden p-4 transition-colors duration-300 ease-premium md:p-5",
-            tint ? "bg-secondary/30 group-hover:bg-secondary/60" : "bg-secondary/55 group-hover:bg-secondary/85",
-          )}
-        >
+      {category.imageUrl ? (
+        <div className="relative flex-1 p-6 md:p-8">
+          <CoverFrame
+            url={category.imageUrl}
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="mx-auto h-full w-auto shadow-lg transition-transform duration-500 ease-premium group-hover:-translate-y-1 group-hover:scale-[1.02]"
+          />
+        </div>
+      ) : covers.length > 0 ? (
+        <div className="relative flex-1 px-6 pt-8 md:px-8 md:pt-10">
+          {/* Extremely subtle oversized initial, sitting behind the book
+              composition — an editorial texture detail, not a focal element. */}
           <span
             aria-hidden
-            className={cn(
-              "absolute -right-2 -top-2 select-none font-heading text-accent/10 transition-colors duration-300 ease-premium group-hover:text-accent/20",
-              large ? "text-[7rem] leading-none" : "text-[4.5rem] leading-none",
-            )}
+            className="pointer-events-none absolute -right-2 -top-4 select-none font-heading text-[9rem] leading-none text-foreground/[0.04] md:text-[11rem]"
           >
             {category.name.charAt(0)}
           </span>
-          <span className="absolute left-4 top-4 h-6 w-px bg-accent/70" aria-hidden />
-          <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 -translate-y-1 text-foreground/0 transition-all duration-300 ease-premium group-hover:translate-y-0 group-hover:text-accent" />
-          <p className={cn("relative font-heading leading-snug text-foreground", large ? "text-2xl md:text-3xl" : "text-lg")}>
+
+          <div className="relative mx-auto h-full max-w-[300px]">
+            {covers[3] && (
+              <div className="absolute bottom-0 right-[6%] z-[5] w-[20%]" style={{ transform: "rotate(4deg)" }}>
+                <CoverFrame
+                  url={covers[3]}
+                  sizes="90px"
+                  className="shadow-sm transition-transform duration-500 ease-premium group-hover:translate-y-[-2px]"
+                />
+              </div>
+            )}
+            {covers[1] && (
+              <div className="absolute left-[6%] top-[10%] z-10 w-[27%]" style={{ transform: "rotate(-4deg)" }}>
+                <CoverFrame
+                  url={covers[1]}
+                  sizes="120px"
+                  className="transition-transform duration-500 ease-premium group-hover:-translate-y-1"
+                />
+              </div>
+            )}
+            {covers[2] && (
+              <div className="absolute right-[8%] top-[6%] z-10 w-[24%]" style={{ transform: "rotate(3deg)" }}>
+                <CoverFrame
+                  url={covers[2]}
+                  sizes="110px"
+                  className="transition-transform duration-500 ease-premium group-hover:-translate-y-1"
+                />
+              </div>
+            )}
+            {covers[0] && (
+              <div className="absolute left-1/2 top-0 z-20 w-[40%] -translate-x-1/2">
+                <CoverFrame
+                  url={covers[0]}
+                  sizes="160px"
+                  priority
+                  className="shadow-xl transition-transform duration-500 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.03]"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 items-center justify-center">
+          <span aria-hidden className="select-none font-heading text-8xl text-accent/10">
+            {category.name.charAt(0)}
+          </span>
+        </div>
+      )}
+
+      <div className="relative z-30 flex items-end justify-between gap-4 border-t border-border/60 bg-brand-50 px-6 py-5 md:px-7 md:py-6">
+        <div>
+          <p className="mb-1.5 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-accent">
+            <span className="h-px w-6 bg-accent/70" aria-hidden />
             {category.name}
           </p>
-          <p className="relative mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+          <p className="font-heading text-2xl leading-snug text-foreground md:text-3xl">{category.name}</p>
+          <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
             {category.bookCount} {category.bookCount === 1 ? "title" : "titles"}
           </p>
         </div>
+        <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium uppercase tracking-wide text-accent transition-transform duration-300 ease-premium group-hover:translate-x-1">
+          Explore collection
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+const cardShell =
+  "group relative flex h-full flex-col justify-between overflow-hidden rounded-lg border border-border/70 p-4 transition-all duration-300 ease-premium hover:border-accent/50 hover:shadow-lg md:p-5";
+
+function CardMeta({ category }: { category: CategoryShelfEntry }) {
+  return (
+    <div className="relative mt-3 flex items-end justify-between gap-2">
+      <div>
+        <p className="font-heading text-base leading-snug text-foreground md:text-lg">{category.name}</p>
+        <p className="mt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+          {category.bookCount} {category.bookCount === 1 ? "title" : "titles"}
+        </p>
+      </div>
+      <ArrowUpRight className="h-4 w-4 shrink-0 text-foreground/30 transition-all duration-300 ease-premium group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent" />
+    </div>
+  );
+}
+
+/** Monogram fallback for the rare category with no curated image and no covered books yet. */
+function EmptyGlyph({ name }: { name: string }) {
+  return (
+    <div className="relative flex flex-1 items-center justify-center">
+      <span
+        aria-hidden
+        className="select-none font-heading text-6xl text-accent/10 transition-colors duration-300 ease-premium group-hover:text-accent/20"
+      >
+        {name.charAt(0)}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * A smaller shelf card — real covers displayed as physical objects (never a
+ * stretched background). `variant` rotates through three distinct editorial
+ * compositions so the row of cards doesn't repeat itself:
+ *   0 — two covers side by side, the second tucked slightly behind the first
+ *   1 — one dominant cover with a smaller one floating at its corner
+ *   2 — a mini shelf of up to three small covers, staggered like a shelf
+ * Each degrades gracefully to fewer covers if the category doesn't have
+ * enough distinct ones yet.
+ */
+function CategoryCard({
+  category,
+  tint,
+  variant,
+}: {
+  category: CategoryShelfEntry;
+  /** Alternates the card field so a row of them doesn't read as identical,
+   *  repeated tiles. */
+  tint: boolean;
+  variant: 0 | 1 | 2;
+}) {
+  const bg = tint ? "bg-secondary/50" : "bg-brand-50/60";
+
+  if (category.imageUrl) {
+    return (
+      <Link href={`/category/${category.slug}`} className={cn(cardShell, bg)}>
+        <div className="relative flex flex-1 items-center justify-center">
+          <CoverFrame
+            url={category.imageUrl}
+            sizes="(max-width: 768px) 50vw, 25vw"
+            className="h-full w-auto shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.03]"
+          />
+        </div>
+        <CardMeta category={category} />
+      </Link>
+    );
+  }
+
+  const covers = category.coverUrls;
+  if (covers.length === 0) {
+    return (
+      <Link href={`/category/${category.slug}`} className={cn(cardShell, bg)}>
+        <EmptyGlyph name={category.name} />
+        <CardMeta category={category} />
+      </Link>
+    );
+  }
+  // Guaranteed by the length check above — TS's noUncheckedIndexedAccess
+  // can't see that across the early return, so this is a known-safe assertion.
+  const primaryCover = covers[0] as string;
+
+  return (
+    <Link href={`/category/${category.slug}`} className={cn(cardShell, bg)}>
+      {variant === 0 && (
+        <div className="relative flex flex-1 items-center justify-center">
+          {covers[1] && (
+            <CoverFrame
+              url={covers[1]}
+              sizes="90px"
+              className="z-10 -mr-5 w-16 -rotate-3 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1 group-hover:-rotate-6 sm:w-[72px] md:w-20"
+            />
+          )}
+          <CoverFrame
+            url={primaryCover}
+            sizes="100px"
+            priority
+            className="relative z-20 w-20 rotate-2 shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.03] sm:w-[88px] md:w-24"
+          />
+        </div>
       )}
+
+      {variant === 1 && (
+        <div className="relative flex flex-1 items-center justify-center">
+          <CoverFrame
+            url={primaryCover}
+            sizes="110px"
+            priority
+            className="relative z-20 w-[88px] shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.03] sm:w-24 md:w-[104px]"
+          />
+          {covers[1] && (
+            <CoverFrame
+              url={covers[1]}
+              sizes="60px"
+              className="absolute bottom-1 right-4 z-10 w-11 rotate-[5deg] shadow-md transition-transform duration-300 ease-premium group-hover:-translate-y-1 sm:w-12 md:right-5 md:w-14"
+            />
+          )}
+        </div>
+      )}
+
+      {variant === 2 && (
+        <div className="relative flex flex-1 items-end justify-center gap-1.5 pb-1">
+          {covers.slice(0, 3).map((url, idx) => (
+            <CoverFrame
+              key={url}
+              url={url}
+              sizes="60px"
+              priority={idx === 0}
+              className={cn(
+                "w-[52px] shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1 sm:w-14 md:w-[60px]",
+                idx === 0 && "-rotate-3 mb-1.5",
+                idx === 1 && "rotate-1",
+                idx === 2 && "rotate-3 mb-1",
+              )}
+            />
+          ))}
+        </div>
+      )}
+
+      <CardMeta category={category} />
     </Link>
   );
 }

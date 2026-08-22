@@ -228,10 +228,11 @@ export interface CategoryShelfEntry {
   description: string | null;
   imageUrl: string | null;
   bookCount: number;
-  /** Real cover URLs of active books in this category (0-4), deduped across
-   *  every category on the shelf — used to fill the tile with actual
-   *  product imagery instead of an invented one. Empty when the category
-   *  currently has no covered books. */
+  /** Real cover URLs of active books in this category (0-4 for the
+   *  featured tile, 0-3 for the rest), deduped across every category on the
+   *  shelf — used to compose the tile from actual product imagery instead
+   *  of an invented one. Empty when the category currently has no covered
+   *  books. */
   coverUrls: string[];
 }
 
@@ -317,7 +318,11 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
   const rawCovers = await Promise.all(ordered.map((c) => getCategoryCoverUrls(supabase, c.id, 8)));
   const usedUrls = new Set<string>();
   const covers = rawCovers.map((urls, i) => {
-    const wanted = i === 0 ? 4 : 1;
+    // Small tiles get up to 3 (not just 1) so the card can compose a real
+    // multi-cover editorial layout (two overlapping, one dominant + one
+    // floating, a mini shelf) instead of a single flat cover — still just a
+    // deeper slice of the same already-fetched real data, not a new query.
+    const wanted = i === 0 ? 4 : 3;
     const picked: string[] = [];
     for (const url of urls) {
       if (picked.length >= wanted) break;

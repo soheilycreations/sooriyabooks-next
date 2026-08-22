@@ -44,7 +44,7 @@ export default async function HomePage() {
         // Tighter top padding than the sections below — the hero already
         // ends on a border, so this reads as a direct continuation of it
         // rather than a new section separated by a block of empty space.
-        <section id="categories" className="container pb-16 pt-10 md:pb-28 md:pt-14">
+        <section id="categories" className="container pb-16 pt-8 md:pb-28 md:pt-10">
           <SectionHeading
             eyebrow="Browse the shelves"
             title="Find your next read"
