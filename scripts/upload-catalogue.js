@@ -1,12 +1,18 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports -- standalone CJS
+   script run directly with `node`, outside the app's ESM/TS build. */
 /**
  * One-off uploader for the real catalogue PDF into Supabase Storage's
  * `media` bucket (the same bucket every other real image asset on the site
- * uses). The file itself is never committed to the repo — 500+ pages /
- * 50MB+ is far too large for git, and would bloat every clone/deploy.
+ * uses). The file itself is never committed to the repo — even compressed,
+ * it's several MB, too large to be worth bloating the repo/every clone with.
  *
  * Run from the project root, with a real SUPABASE_SERVICE_ROLE_KEY in
- * .env.local (the anon key does not have upload permission on this bucket):
+ * .env.local (the anon key does not have upload permission on this bucket).
+ * The `media` bucket's "Restrict MIME types" setting must also explicitly
+ * allow application/pdf, and its file size limit must be raised past the
+ * default 10MB — both are bucket-level settings in the Supabase dashboard,
+ * not something this script can change:
  *
  *   node scripts/upload-catalogue.js "C:\path\to\Sooriya-Catalogue.pdf"
  *

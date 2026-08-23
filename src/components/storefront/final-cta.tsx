@@ -6,7 +6,19 @@ import { CatalogueViewer } from "@/components/storefront/catalogue-viewer";
 
 export function FinalCta() {
   return (
-    <section className="relative overflow-hidden border-t bg-foreground text-background">
+    <section className="relative isolate overflow-hidden border-t text-background">
+      {/* Real store photo as the section's own background, not a separate
+          band underneath — same full-bleed-photo + dark-overlay treatment
+          the homepage hero already uses, so the two "photo" moments on the
+          page read as one consistent idiom. */}
+      <Image
+        src="/brand/store-hero.jpg"
+        alt="Inside the Sooriya Publishers bookstore"
+        fill
+        sizes="100vw"
+        className="-z-20 object-cover"
+      />
+      <div className="absolute inset-0 -z-10 bg-foreground/85" aria-hidden />
       {/* Faint radial glow behind the closing statement — a restrained, single accent
           touch rather than a decorative image, in keeping with the dark section's tone. */}
       <div
@@ -39,21 +51,6 @@ export function FinalCta() {
             <CatalogueViewer />
           </div>
         </Reveal>
-      </div>
-
-      {/* Real store photo, dimmed and faded back into the section's own dark
-          field at the bottom — closes the section on an image instead of
-          cutting straight to the footer, while staying in the same "black"
-          mood rather than breaking to a bright photo. */}
-      <div className="relative h-56 md:h-72">
-        <Image
-          src="/brand/store-hero.jpg"
-          alt="Inside the Sooriya Publishers bookstore"
-          fill
-          sizes="100vw"
-          className="object-cover opacity-60"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/50 to-foreground/10" />
       </div>
     </section>
   );
