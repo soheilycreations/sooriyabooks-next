@@ -35,7 +35,7 @@ export function SectionHeading({
             {eyebrow}
           </p>
         )}
-        <h2 className="font-heading text-3xl leading-tight md:text-4xl md:leading-tight">{title}</h2>
+        <h2 className="font-heading text-3xl leading-tight text-foreground md:text-4xl md:leading-tight">{title}</h2>
         {description && <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>}
       </div>
       {viewAllHref && (

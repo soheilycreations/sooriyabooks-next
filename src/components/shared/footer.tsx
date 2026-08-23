@@ -70,7 +70,7 @@ export async function Footer() {
     // Dark, matching the closing CTA section right above it on the
     // homepage — the whole bottom of the page reads as one settled, final
     // beat instead of bouncing back to a light field just before the edge.
-    <footer className="border-t border-white/10 bg-foreground text-background">
+    <footer className="forced-light border-t border-white/10 bg-foreground text-background">
       <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" aria-hidden />
 
       <div className="border-b border-white/10">

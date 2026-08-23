@@ -69,6 +69,33 @@
 /* Design tokens documented in docs/design-system.md — treat that file as the
    source of truth for the palette, type scale, and spacing rhythm above. */
 
+/* Pins the semantic tokens to their light-mode values regardless of the
+   site-wide dark-mode toggle. Two unrelated needs share this:
+   1) Editorial cream sections (bg-brand-50 — a fixed hex, not a token, so
+      it never changes with dark mode) need their text to stay the fixed
+      dark colour that was always readable on cream; without this, dark
+      mode's near-white --foreground gets inherited and disappears.
+   2) The homepage's dark-closing sections (final CTA, footer) render dark
+      by deliberately using --foreground/--background *swapped* (bg-foreground
+      + text-background) — a trick that only produces "dark bg, light text"
+      because in light mode --foreground is dark and --background is light.
+      Toggling real dark mode flips those two, which flips the trick and
+      inverts the whole section to a white background. Pinning to the fixed
+      light-mode values keeps the swap working the way it was designed,
+      independent of the viewer's theme choice. */
+.forced-light {
+  --background: 40 33% 99%;
+  --foreground: 0 0% 7%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 7%;
+  --secondary: 40 15% 95%;
+  --secondary-foreground: 0 0% 7%;
+  --muted: 40 15% 95%;
+  --muted-foreground: 0 0% 40%;
+  --border: 40 10% 88%;
+  --input: 40 10% 88%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -70,7 +70,7 @@ export function CatalogueViewer() {
               aria-label="Sooriya Publishers catalogue"
               aria-hidden={!open}
               className={cn(
-                "fixed inset-4 z-[101] flex flex-col overflow-hidden rounded-xl bg-background shadow-2xl transition-all duration-300 ease-premium md:inset-x-[8%] md:inset-y-[4%]",
+                "forced-light fixed inset-4 z-[101] flex flex-col overflow-hidden rounded-xl bg-background shadow-2xl transition-all duration-300 ease-premium md:inset-x-[8%] md:inset-y-[4%]",
                 open ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0",
               )}
               style={{

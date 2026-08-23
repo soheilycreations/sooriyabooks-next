@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Jost, Marcellus } from "next/font/google";
+import { ThemeProvider } from "@/components/shared/theme-provider";
 import "./globals.css";
 
 const jost = Jost({
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${jost.variable} ${marcellus.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-body text-foreground">
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

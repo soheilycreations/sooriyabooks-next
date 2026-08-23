@@ -6,7 +6,7 @@ import { CatalogueViewer } from "@/components/storefront/catalogue-viewer";
 
 export function FinalCta() {
   return (
-    <section className="relative isolate overflow-hidden border-t text-background">
+    <section className="forced-light relative isolate overflow-hidden border-t text-background">
       {/* Real store photo as the section's own background, not a separate
           band underneath — same full-bleed-photo + dark-overlay treatment
           the homepage hero already uses, so the two "photo" moments on the

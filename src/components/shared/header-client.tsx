@@ -11,6 +11,7 @@ import { MiniCart } from "@/components/shared/mini-cart";
 import { WishlistDrawer } from "@/components/shared/wishlist-drawer";
 import { AccountDrawer } from "@/components/shared/account-drawer";
 import { MobileNav } from "@/components/shared/mobile-nav";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Logo } from "@/components/shared/logo";
 import type { NavCategory } from "@/lib/catalog/nav-categories";
 import { cn, navLinkFocusClass } from "@/lib/utils";
@@ -93,6 +94,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
         </nav>
 
         <div className="flex shrink-0 items-center gap-1 lg:ml-6">
+          <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"
