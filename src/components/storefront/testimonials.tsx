@@ -24,7 +24,7 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
   return (
-    <section className="border-t bg-secondary/40">
+    <section className="border-t bg-secondary">
       <div className="container py-14 md:py-20">
         <SectionHeading eyebrow="Trusted island-wide" title="What readers say" align="center" />
         <div className="mx-auto grid max-w-4xl divide-y md:grid-cols-2 md:divide-x md:divide-y-0">
