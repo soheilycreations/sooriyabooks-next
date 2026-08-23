@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Truck, Headphones, ShieldCheck, Instagram } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
+import { BackToTop } from "@/components/shared/back-to-top";
 import { selectNavCategories } from "@/lib/catalog/nav-categories";
 import { createClient } from "@/lib/supabase/server";
 import { cn, navLinkFocusClass } from "@/lib/utils";
@@ -36,6 +38,16 @@ const FOOTER_COLUMNS_STATIC = [
   },
 ];
 
+// Same three service commitments the previous site's footer promised —
+// real, existing claims (island-wide delivery already appears in the
+// homepage hero copy), just given a proper icon treatment here instead of
+// being invented fresh.
+const TRUST_POINTS = [
+  { icon: Truck, title: "Island-Wide Delivery", description: "Within 2 to 5 working days" },
+  { icon: Headphones, title: "Customer Support", description: "We're here to help with any question" },
+  { icon: ShieldCheck, title: "Secure Payment", description: "100% safe checkout, no hidden charges" },
+];
+
 export async function Footer() {
   const shopLinks = await getShopLinks();
   const footerColumns = [{ title: "Shop", links: shopLinks }, ...FOOTER_COLUMNS_STATIC];
@@ -46,6 +58,23 @@ export async function Footer() {
     // whitespace (the same pattern fixed for the homepage's own sections).
     <footer className="border-t bg-secondary/40">
       <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" aria-hidden />
+
+      <div className="border-b border-border/70">
+        <div className="container grid grid-cols-1 gap-6 py-8 sm:grid-cols-3">
+          {TRUST_POINTS.map(({ icon: Icon, title, description }) => (
+            <div key={title} className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-accent">
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-heading text-sm text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground">{description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="container grid gap-10 py-16 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <Logo variant="full" height={34} />
@@ -53,6 +82,18 @@ export async function Footer() {
             The Light of Learning — Sri Lanka&apos;s trusted publishing and distribution company
             since <span className="font-medium text-foreground">1994</span>.
           </p>
+          <a
+            href="https://instagram.com/sooriyabooks"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "mt-5 inline-flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-accent hover:text-accent",
+              navLinkFocusClass,
+            )}
+            aria-label="Sooriya Publishers on Instagram"
+          >
+            <Instagram className="h-4 w-4" />
+          </a>
         </div>
         {footerColumns.map((col) => (
           <div key={col.title}>
@@ -82,9 +123,12 @@ export async function Footer() {
         ))}
       </div>
       <div className="border-t py-6">
-        <div className="container flex flex-col items-center justify-between gap-2 text-xs text-muted-foreground sm:flex-row">
+        <div className="container flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
           <p>© {new Date().getFullYear()} Sooriya Publishers. All rights reserved.</p>
-          <p className="uppercase tracking-[0.15em] text-muted-foreground/70">The Light of Learning</p>
+          <div className="flex items-center gap-4">
+            <p className="uppercase tracking-[0.15em] text-muted-foreground/70">The Light of Learning</p>
+            <BackToTop />
+          </div>
         </div>
       </div>
     </footer>
