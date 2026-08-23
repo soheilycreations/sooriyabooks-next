@@ -23,12 +23,18 @@ import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 export const revalidate = 3600; // ISR: catalog/homepage changes invalidate via revalidateTag in admin actions
 
 export default async function HomePage() {
-  const [featured, newArrivals, sooriyaBooks, slides, categories, stats, wishlistIds] = await Promise.all([
+  const [featured, newArrivals, sooriyaBooks, pastPapers, slides, categories, stats, wishlistIds] = await Promise.all([
     getFeaturedBooks(8),
     getNewArrivals(8),
     // Real books from the publisher's own "Sooriya Books" imprint category —
     // same slug the category shelf's featured tile links to.
     getBooksByCategory("sooriya-books", { limit: 14 }),
+    // Real "Past & Model Papers" category — the reference site has the same
+    // section. Note: the catalog has a second, near-duplicate category
+    // ("past-model-papers-1", 32 books vs this one's 23) left over from the
+    // WordPress migration; using the primary slug here, but the duplicate
+    // is worth cleaning up in the admin panel at some point.
+    getBooksByCategory("past-model-papers", { limit: 14 }),
     getActiveHeroSlides(),
     // 9, not 10: the shelf's featured tile spans 2x2 in a 4-col grid (4
     // cells), so the remaining tiles must be a multiple of 4 to tile evenly
@@ -106,6 +112,23 @@ export default async function HomePage() {
           </div>
           <div className="container">
             <NewArrivalsCarousel books={newArrivals} wishlistIds={wishlistIds} />
+          </div>
+        </section>
+      )}
+
+      {pastPapers.books.length > 0 && (
+        // Warm-gray, continuing the cream/gray/white rhythm established
+        // above (New Arrivals is cream, this is gray, brand story below is
+        // white) rather than repeating the section right before it.
+        <section className="forced-light bg-secondary py-10 md:py-16">
+          <div className="container">
+            <SectionHeading
+              eyebrow="Exam Season"
+              title="Past Papers & Model Papers"
+              viewAllHref="/category/past-model-papers"
+              viewAllLabel="See all books"
+            />
+            <NewArrivalsCarousel books={pastPapers.books} wishlistIds={wishlistIds} />
           </div>
         </section>
       )}
