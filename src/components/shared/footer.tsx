@@ -41,7 +41,10 @@ export async function Footer() {
   const footerColumns = [{ title: "Shop", links: shopLinks }, ...FOOTER_COLUMNS_STATIC];
 
   return (
-    <footer className="mt-24 border-t bg-secondary/40">
+    // No top margin — every page's last section already carries its own
+    // bottom padding, so an additional margin here only stacked into extra
+    // whitespace (the same pattern fixed for the homepage's own sections).
+    <footer className="border-t bg-secondary/40">
       <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" aria-hidden />
       <div className="container grid gap-10 py-16 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
