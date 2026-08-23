@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Truck, Headphones, ShieldCheck, Instagram } from "lucide-react";
+import { Truck, Headphones, ShieldCheck, Facebook, Instagram, Twitter, Youtube, Send } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { BackToTop } from "@/components/shared/back-to-top";
 import { selectNavCategories } from "@/lib/catalog/nav-categories";
 import { createClient } from "@/lib/supabase/server";
+import { getSiteSettings } from "@/lib/settings/actions";
 import { cn, navLinkFocusClass } from "@/lib/utils";
 
 // Same top-level category slice + filtering as the header nav
@@ -51,6 +52,16 @@ const TRUST_POINTS = [
 export async function Footer() {
   const shopLinks = await getShopLinks();
   const footerColumns = [{ title: "Shop", links: shopLinks }, ...FOOTER_COLUMNS_STATIC];
+  const settings = await getSiteSettings();
+  // Only platforms with a real URL saved in /admin/settings show an icon —
+  // never a placeholder link to an account that may not exist.
+  const socialLinks = [
+    { href: settings.facebookUrl, label: "Facebook", icon: Facebook },
+    { href: settings.instagramUrl, label: "Instagram", icon: Instagram },
+    { href: settings.twitterUrl, label: "Twitter / X", icon: Twitter },
+    { href: settings.youtubeUrl, label: "YouTube", icon: Youtube },
+    { href: settings.telegramUrl, label: "Telegram", icon: Send },
+  ].filter((s) => s.href);
 
   return (
     // No top margin — every page's last section already carries its own
@@ -82,18 +93,25 @@ export async function Footer() {
             The Light of Learning — Sri Lanka&apos;s trusted publishing and distribution company
             since <span className="font-medium text-foreground">1994</span>.
           </p>
-          <a
-            href="https://instagram.com/sooriyabooks"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "mt-5 inline-flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-accent hover:text-accent",
-              navLinkFocusClass,
-            )}
-            aria-label="Sooriya Publishers on Instagram"
-          >
-            <Instagram className="h-4 w-4" />
-          </a>
+          {socialLinks.length > 0 && (
+            <div className="mt-5 flex items-center gap-2">
+              {socialLinks.map(({ href, label, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-accent hover:text-accent",
+                    navLinkFocusClass,
+                  )}
+                  aria-label={`Sooriya Publishers on ${label}`}
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
         {footerColumns.map((col) => (
           <div key={col.title}>

@@ -1346,6 +1346,36 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          facebook_url: string | null
+          id: string
+          instagram_url: string | null
+          telegram_url: string | null
+          twitter_url: string | null
+          updated_at: string
+          youtube_url: string | null
+        }
+        Insert: {
+          facebook_url?: string | null
+          id?: string
+          instagram_url?: string | null
+          telegram_url?: string | null
+          twitter_url?: string | null
+          updated_at?: string
+          youtube_url?: string | null
+        }
+        Update: {
+          facebook_url?: string | null
+          id?: string
+          instagram_url?: string | null
+          telegram_url?: string | null
+          twitter_url?: string | null
+          updated_at?: string
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
       staff_members: {
         Row: {
           created_at: string
