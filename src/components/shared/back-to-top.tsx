@@ -5,7 +5,7 @@ import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Appears once the page has scrolled a bit — no point offering "back to top" from the top. */
-export function BackToTop() {
+export function BackToTop({ className }: { className?: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -26,6 +26,7 @@ export function BackToTop() {
       className={cn(
         "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-all duration-300 ease-premium hover:border-accent hover:text-accent",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
+        className,
       )}
     >
       <ArrowUp className="h-4 w-4" />

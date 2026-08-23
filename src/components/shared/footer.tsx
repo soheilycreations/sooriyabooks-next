@@ -67,19 +67,22 @@ export async function Footer() {
     // No top margin — every page's last section already carries its own
     // bottom padding, so an additional margin here only stacked into extra
     // whitespace (the same pattern fixed for the homepage's own sections).
-    <footer className="border-t bg-secondary/40">
+    // Dark, matching the closing CTA section right above it on the
+    // homepage — the whole bottom of the page reads as one settled, final
+    // beat instead of bouncing back to a light field just before the edge.
+    <footer className="border-t border-white/10 bg-foreground text-background">
       <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" aria-hidden />
 
-      <div className="border-b border-border/70">
+      <div className="border-b border-white/10">
         <div className="container grid grid-cols-1 gap-6 py-8 sm:grid-cols-3">
           {TRUST_POINTS.map(({ icon: Icon, title, description }) => (
             <div key={title} className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-accent">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-background/10 text-accent">
                 <Icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-heading text-sm text-foreground">{title}</p>
-                <p className="text-xs text-muted-foreground">{description}</p>
+                <p className="font-heading text-sm text-background">{title}</p>
+                <p className="text-xs text-background/60">{description}</p>
               </div>
             </div>
           ))}
@@ -89,9 +92,9 @@ export async function Footer() {
       <div className="container grid gap-10 py-16 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <Logo variant="full" height={34} />
-          <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-background/60">
             The Light of Learning — Sri Lanka&apos;s trusted publishing and distribution company
-            since <span className="font-medium text-foreground">1994</span>.
+            since <span className="font-medium text-background">1994</span>.
           </p>
           {socialLinks.length > 0 && (
             <div className="mt-5 flex items-center gap-2">
@@ -102,7 +105,7 @@ export async function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "inline-flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-accent hover:text-accent",
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-background/60 transition-colors hover:border-accent hover:text-accent",
                     navLinkFocusClass,
                   )}
                   aria-label={`Sooriya Publishers on ${label}`}
@@ -115,7 +118,7 @@ export async function Footer() {
         </div>
         {footerColumns.map((col) => (
           <div key={col.title}>
-            <p className="flex items-center gap-2 font-heading text-sm uppercase tracking-[0.15em] text-foreground/90">
+            <p className="flex items-center gap-2 font-heading text-sm uppercase tracking-[0.15em] text-background/90">
               <span className="h-3 w-px bg-accent" aria-hidden />
               {col.title}
             </p>
@@ -125,7 +128,7 @@ export async function Footer() {
                   <Link
                     href={link.href}
                     className={cn(
-                      "group inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-accent",
+                      "group inline-flex items-center text-sm text-background/60 transition-colors hover:text-accent",
                       navLinkFocusClass,
                     )}
                   >
@@ -140,12 +143,12 @@ export async function Footer() {
           </div>
         ))}
       </div>
-      <div className="border-t py-6">
-        <div className="container flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
+      <div className="border-t border-white/10 py-6">
+        <div className="container flex flex-col items-center justify-between gap-3 text-xs text-background/50 sm:flex-row">
           <p>© {new Date().getFullYear()} Sooriya Publishers. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <p className="uppercase tracking-[0.15em] text-muted-foreground/70">The Light of Learning</p>
-            <BackToTop />
+            <p className="uppercase tracking-[0.15em] text-background/40">The Light of Learning</p>
+            <BackToTop className="border-white/15 text-background/50" />
           </div>
         </div>
       </div>
