@@ -17,7 +17,13 @@ const marcellus = Marcellus({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://sooriyabooks.lk"),
+  // `||`, not `??` — Vercel can have NEXT_PUBLIC_SITE_URL set to an empty
+  // string rather than left unset, and `??` only falls back on
+  // null/undefined, not "". An empty string reaching new URL() throws
+  // ERR_INVALID_URL and fails the entire build (surfaced as a mysterious
+  // "/_not-found" page-data-collection error, since /_not-found is the
+  // first page to evaluate this root layout's metadata).
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://sooriyabooks.lk"),
   title: {
     default: "Sooriya Publishers | Buy Books Online in Sri Lanka",
     template: "%s | Sooriya Publishers",
