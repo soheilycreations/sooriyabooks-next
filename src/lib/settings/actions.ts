@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/session";
@@ -12,14 +13,20 @@ export interface SiteSettings {
   twitterUrl: string;
   youtubeUrl: string;
   telegramUrl: string;
+  whatsappUrl: string;
 }
 
-/** Public read — the footer (rendered for every visitor) needs this without requiring staff auth. */
-export async function getSiteSettings(): Promise<SiteSettings> {
+/**
+ * Public read — the footer and the floating WhatsApp button (both rendered
+ * for every visitor, from the storefront layout and Footer independently)
+ * need this without requiring staff auth. Wrapped in React's cache() so
+ * both call sites within the same request share one query.
+ */
+export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("site_settings")
-    .select("facebook_url, instagram_url, twitter_url, youtube_url, telegram_url")
+    .select("facebook_url, instagram_url, twitter_url, youtube_url, telegram_url, whatsapp_url")
     .limit(1)
     .maybeSingle();
 
@@ -29,8 +36,9 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     twitterUrl: data?.twitter_url ?? "",
     youtubeUrl: data?.youtube_url ?? "",
     telegramUrl: data?.telegram_url ?? "",
+    whatsappUrl: data?.whatsapp_url ?? "",
   };
-}
+});
 
 export async function updateSiteSettings(input: SiteSettingsInput): Promise<ActionResult> {
   await requireStaff();
@@ -52,6 +60,7 @@ export async function updateSiteSettings(input: SiteSettingsInput): Promise<Acti
       twitter_url: d.twitterUrl || null,
       youtube_url: d.youtubeUrl || null,
       telegram_url: d.telegramUrl || null,
+      whatsapp_url: d.whatsappUrl || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);

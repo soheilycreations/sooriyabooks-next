@@ -1354,6 +1354,7 @@ export type Database = {
           telegram_url: string | null
           twitter_url: string | null
           updated_at: string
+          whatsapp_url: string | null
           youtube_url: string | null
         }
         Insert: {
@@ -1363,6 +1364,7 @@ export type Database = {
           telegram_url?: string | null
           twitter_url?: string | null
           updated_at?: string
+          whatsapp_url?: string | null
           youtube_url?: string | null
         }
         Update: {
@@ -1372,6 +1374,7 @@ export type Database = {
           telegram_url?: string | null
           twitter_url?: string | null
           updated_at?: string
+          whatsapp_url?: string | null
           youtube_url?: string | null
         }
         Relationships: []

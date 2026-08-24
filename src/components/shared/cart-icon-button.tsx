@@ -10,7 +10,14 @@ export function CartIconButton({ onClick }: { onClick: () => void }) {
   const { itemCount } = useCart();
 
   return (
-    <Button variant="ghost" size="icon" aria-label="Cart" className="relative" onClick={onClick}>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Cart"
+      data-cart-target
+      className="relative"
+      onClick={onClick}
+    >
       <ShoppingBag className="h-5 w-5" />
       {itemCount > 0 && (
         <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground">

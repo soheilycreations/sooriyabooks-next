@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Appears once the page has scrolled a bit — no point offering "back to top" from the top. */
-export function BackToTop({ className }: { className?: string }) {
+/**
+ * Appears once the page has scrolled a bit — no point offering "back to top"
+ * from the top. `floating` renders it as a fixed circular button in the
+ * bottom corner (for site-wide placement in the root layout); the default
+ * renders the smaller inline ghost style the footer bar already uses.
+ */
+export function BackToTop({ className, floating = false }: { className?: string; floating?: boolean }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -24,8 +29,12 @@ export function BackToTop({ className }: { className?: string }) {
       aria-label="Back to top"
       tabIndex={visible ? 0 : -1}
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-all duration-300 ease-premium hover:border-accent hover:text-accent",
+        "flex shrink-0 items-center justify-center rounded-full border transition-all duration-300 ease-premium",
+        floating
+          ? "fixed bottom-6 right-6 z-40 h-11 w-11 border-border bg-background text-foreground shadow-lg hover:border-accent hover:text-accent"
+          : "h-9 w-9 text-muted-foreground hover:border-accent hover:text-accent",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
+        floating && !visible && "translate-y-2",
         className,
       )}
     >

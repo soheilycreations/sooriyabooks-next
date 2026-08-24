@@ -8,12 +8,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { updateSiteSettings } from "@/lib/settings/actions";
 import type { SiteSettingsInput } from "@/lib/validation/site-settings";
 
-const FIELDS: { key: keyof SiteSettingsInput; label: string; placeholder: string }[] = [
+const FIELDS: { key: keyof SiteSettingsInput; label: string; placeholder: string; hint?: string }[] = [
   { key: "facebookUrl", label: "Facebook", placeholder: "https://facebook.com/..." },
   { key: "instagramUrl", label: "Instagram", placeholder: "https://instagram.com/..." },
   { key: "twitterUrl", label: "Twitter / X", placeholder: "https://x.com/..." },
   { key: "youtubeUrl", label: "YouTube", placeholder: "https://youtube.com/@..." },
   { key: "telegramUrl", label: "Telegram", placeholder: "https://t.me/..." },
+  {
+    key: "whatsappUrl",
+    label: "WhatsApp",
+    placeholder: "https://wa.me/94771234567",
+    hint: "A wa.me link — replace 94771234567 with the store's WhatsApp number in international format, no plus sign or leading zero.",
+  },
 ];
 
 /** Leave a field blank to hide that icon in the footer — only platforms with a real URL saved here show up. */
@@ -51,6 +57,7 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettingsInput }) {
                 value={form[field.key]}
                 onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
               />
+              {field.hint && <p className="mt-1 text-xs text-muted-foreground">{field.hint}</p>}
             </div>
           ))}
         </CardContent>

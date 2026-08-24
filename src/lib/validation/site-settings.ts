@@ -8,5 +8,6 @@ export const siteSettingsSchema = z.object({
   twitterUrl: urlField,
   youtubeUrl: urlField,
   telegramUrl: urlField,
+  whatsappUrl: urlField,
 });
 export type SiteSettingsInput = z.infer<typeof siteSettingsSchema>;

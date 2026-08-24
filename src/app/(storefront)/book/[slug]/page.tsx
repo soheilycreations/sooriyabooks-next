@@ -7,6 +7,7 @@ import { ProductGallery } from "@/components/storefront/product-gallery";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { WishlistButton } from "@/components/storefront/wishlist-button";
 import { ReviewsSection } from "@/components/storefront/reviews-section";
+import { ShareButtons } from "@/components/storefront/share-buttons";
 import { ProductCard } from "@/components/storefront/product-card";
 import { SectionHeading } from "@/components/storefront/section-heading";
 import { Reveal } from "@/components/storefront/reveal";
@@ -224,6 +225,13 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
             <Truck className="h-4 w-4 text-accent" aria-hidden />
             Island-wide delivery available.
           </p>
+
+          <div className="mt-6 border-t pt-6">
+            <ShareButtons
+              url={`${process.env.NEXT_PUBLIC_SITE_URL || "https://sooriyabooks.lk"}/book/${b.slug}`}
+              title={b.title}
+            />
+          </div>
 
           {metaRows.length > 0 && (
             <dl className="mt-8 divide-y border-t text-sm">

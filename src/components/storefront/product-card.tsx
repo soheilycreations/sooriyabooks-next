@@ -4,12 +4,14 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { BookCardData } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
 import { CardWishlistButton } from "@/components/storefront/card-wishlist-button";
+import { QuickAddButton } from "@/components/storefront/quick-add-button";
 
 export function ProductCard({
   book,
   className,
   showWishlist = false,
   inWishlist = false,
+  showQuickAdd = false,
 }: {
   book: BookCardData;
   className?: string;
@@ -17,6 +19,9 @@ export function ProductCard({
    *  search) can skip the extra button; homepage passes true. */
   showWishlist?: boolean;
   inWishlist?: boolean;
+  /** Off by default — carousels are narrow enough that a hover bar can feel
+   *  cramped; grid pages (search, category) pass true. */
+  showQuickAdd?: boolean;
 }) {
   const isOnSale = book.discountPrice != null && book.discountPrice < book.sellingPrice;
   const percentOff = isOnSale
@@ -54,6 +59,7 @@ export function ProductCard({
         </div>
 
         {showWishlist && <CardWishlistButton bookId={book.id} initialInWishlist={inWishlist} />}
+        {showQuickAdd && <QuickAddButton book={book} outOfStock={isOutOfStock} />}
       </div>
       <p className="mt-3 line-clamp-2 font-heading text-base leading-snug tracking-tight text-foreground transition-colors duration-200 group-hover:text-accent">
         {book.title}

@@ -10,6 +10,9 @@ export interface BookCardData {
   discountPrice: number | null;
   authorName: string | null;
   coverUrl: string | null;
+  /** Real product weight — needed to add a book to the cart directly from a
+   *  card grid (shipping cost depends on it), not just from the PDP. */
+  weightGrams: number;
   /** Undefined when the query didn't join inventory — treat as "unknown", not "out of stock". */
   inStock?: boolean;
   lowStock?: boolean;
@@ -23,7 +26,7 @@ function resolveCoverUrl(storagePath: string | null): string | null {
 }
 
 /** Books for homepage/category/search grids. Returns [] gracefully if the catalog is empty (pre-migration). */
-export const BOOK_CARD_SELECT_WITH_STOCK = `id, title, slug, selling_price, discount_price, created_at,
+export const BOOK_CARD_SELECT_WITH_STOCK = `id, title, slug, selling_price, discount_price, weight_grams, created_at,
        authors ( name ),
        book_images ( is_primary, sort_order, media_assets ( storage_path ) ),
        inventory ( quantity_on_hand, quantity_reserved, low_stock_threshold, stock_tracking_enabled, untracked_available )`;
@@ -115,6 +118,69 @@ export const SORT_COLUMN: Record<BookSort, { column: string; ascending: boolean 
   price_asc: { column: "selling_price", ascending: true },
   price_desc: { column: "selling_price", ascending: false },
 };
+
+export interface SearchFilters {
+  q?: string;
+  featured?: boolean;
+  isNew?: boolean;
+  sort?: BookSort;
+  /** Category slug, not id — matches how the URL/UI refer to categories everywhere else. */
+  categorySlug?: string;
+  minPrice?: number;
+  maxPrice?: number;
+}
+
+/**
+ * Shared query behind both the /search page's initial (server-rendered)
+ * results and its "load more" server action — same filters, same sort,
+ * just a different offset, so the two can never drift out of sync with
+ * each other the way two independently-written queries could.
+ */
+export async function searchBooks(
+  filters: SearchFilters,
+  offset: number,
+  limit: number,
+): Promise<{ books: BookCardData[]; total: number }> {
+  const supabase = await createClient();
+
+  let categoryId: string | null = null;
+  if (filters.categorySlug) {
+    const { data: category } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("slug", filters.categorySlug)
+      .maybeSingle();
+    if (!category) return { books: [], total: 0 }; // unknown slug — no matches, not an error
+    categoryId = category.id;
+  }
+
+  const { column, ascending } = SORT_COLUMN[filters.sort ?? "newest"];
+
+  let query = supabase
+    .from("books")
+    .select(
+      categoryId ? `${BOOK_CARD_SELECT_WITH_STOCK}, book_categories!inner ( category_id )` : BOOK_CARD_SELECT_WITH_STOCK,
+      { count: "exact" },
+    )
+    .eq("is_active", true);
+
+  if (categoryId) query = query.eq("book_categories.category_id", categoryId);
+  if (filters.q) {
+    const term = sanitizeSearchTerm(filters.q);
+    if (term) query = query.or(`title.ilike.%${term}%,isbn.ilike.%${term}%,sku.ilike.%${term}%`);
+  }
+  if (filters.featured) query = query.eq("is_featured", true);
+  if (filters.isNew) query = query.eq("is_new_arrival", true);
+  if (filters.minPrice != null) query = query.gte("selling_price", filters.minPrice);
+  if (filters.maxPrice != null) query = query.lte("selling_price", filters.maxPrice);
+
+  // Base table must be `books` itself, not the book_categories join table —
+  // .order(col, { foreignTable }) on a nested embed silently no-ops against
+  // this project's PostgREST (see getBooksByCategory's identical note).
+  const { data, count } = await query.order(column, { ascending }).range(offset, offset + limit - 1);
+
+  return { books: (data ?? []).map(mapBookRowToCard), total: count ?? 0 };
+}
 
 export async function getBooksByCategory(
   categorySlug: string,
@@ -380,6 +446,7 @@ export function mapBookRowToCard(row: any): BookCardData {
     discountPrice: row.discount_price ? Number(row.discount_price) : null,
     authorName: row.authors?.name ? decodeHtmlEntities(row.authors.name) : null,
     coverUrl: resolveCoverUrl(primary?.media_assets?.storage_path ?? null),
+    weightGrams: row.weight_grams ?? 0,
     inStock,
     lowStock,
   };

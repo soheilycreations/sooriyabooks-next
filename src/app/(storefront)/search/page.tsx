@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { SearchX } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { ProductCard } from "@/components/storefront/product-card";
 import { SortSelect } from "@/components/storefront/sort-select";
-import { Reveal } from "@/components/storefront/reveal";
-import { sanitizeSearchTerm } from "@/lib/utils";
-import { BOOK_CARD_SELECT_WITH_STOCK, SORT_COLUMN, mapBookRowToCard, type BookSort } from "@/lib/catalog/queries";
+import { SearchResults } from "@/components/storefront/search-results";
+import { SearchFilters } from "@/components/storefront/search-filters";
+import { searchBooks, type BookSort, type SearchFilters as BookSearchFilters } from "@/lib/catalog/queries";
+import { selectNavCategories } from "@/lib/catalog/nav-categories";
 import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 
 export const metadata: Metadata = { title: "Search" };
@@ -16,43 +15,48 @@ const PAGE_SIZE = 24;
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; featured?: string; new?: string; sort?: string; limit?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    featured?: string;
+    new?: string;
+    sort?: string;
+    category?: string;
+    minPrice?: string;
+    maxPrice?: string;
+  }>;
 }) {
-  const { q, featured, new: isNew, sort: sortParam, limit: limitParam } = await searchParams;
+  const { q, featured, new: isNew, sort: sortParam, category, minPrice, maxPrice } = await searchParams;
   const supabase = await createClient();
 
   const sort: BookSort = sortParam === "price_asc" || sortParam === "price_desc" ? sortParam : "newest";
-  const limit = Math.max(PAGE_SIZE, Number(limitParam) || PAGE_SIZE);
-  const { column, ascending } = SORT_COLUMN[sort];
 
-  let query = supabase
-    .from("books")
-    .select(BOOK_CARD_SELECT_WITH_STOCK, { count: "exact" })
-    .eq("is_active", true)
-    .order(column, { ascending })
-    .limit(limit);
+  const filters: BookSearchFilters = {
+    q,
+    featured: featured === "1",
+    isNew: isNew === "1",
+    sort,
+    categorySlug: category || undefined,
+    minPrice: minPrice ? Number(minPrice) : undefined,
+    maxPrice: maxPrice ? Number(maxPrice) : undefined,
+  };
 
-  if (q) {
-    const term = sanitizeSearchTerm(q);
-    if (term) query = query.or(`title.ilike.%${term}%,isbn.ilike.%${term}%,sku.ilike.%${term}%`);
-  }
-  if (featured === "1") query = query.eq("is_featured", true);
-  if (isNew === "1") query = query.eq("is_new_arrival", true);
+  const [{ books, total }, wishlistIds, { data: categoryRows }] = await Promise.all([
+    searchBooks(filters, 0, PAGE_SIZE),
+    getWishlistBookIds(),
+    supabase.from("categories").select("id, name, slug, parent_id").is("parent_id", null).order("sort_order").limit(80),
+  ]);
 
-  const [{ data, count }, wishlistIds] = await Promise.all([query, getWishlistBookIds()]);
+  const filterCategories = selectNavCategories(categoryRows ?? [], 60);
 
-  const books = (data ?? []).map(mapBookRowToCard);
-  const total = count ?? books.length;
-  const hasMore = books.length < total;
-
-  const moreParams = new URLSearchParams();
-  if (q) moreParams.set("q", q);
-  if (featured) moreParams.set("featured", featured);
-  if (isNew) moreParams.set("new", isNew);
-  if (sortParam) moreParams.set("sort", sortParam);
-  moreParams.set("limit", String(limit + PAGE_SIZE));
-
-  const heading = q ? `Results for "${q}"` : featured === "1" ? "Featured Books" : isNew === "1" ? "New Arrivals" : "All Books";
+  const heading = q
+    ? `Results for "${q}"`
+    : category
+      ? (filterCategories.find((c) => c.slug === category)?.name ?? "Category")
+      : featured === "1"
+        ? "Featured Books"
+        : isNew === "1"
+          ? "New Arrivals"
+          : "All Books";
 
   return (
     <div className="container py-12 md:py-16">
@@ -76,37 +80,32 @@ export default async function SearchPage({
         {books.length > 0 && <SortSelect />}
       </div>
 
-      {books.length > 0 ? (
-        <>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
-            {books.map((book, i) => (
-              <Reveal key={book.id} index={i % 8}>
-                <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
-              </Reveal>
-            ))}
-          </div>
-          {hasMore && (
-            <div className="mt-12 text-center">
-              <Link
-                href={`?${moreParams.toString()}`}
-                className="inline-flex h-11 items-center justify-center rounded-md border border-input px-6 text-sm font-medium transition-colors hover:bg-secondary"
-              >
-                Load more books
-              </Link>
+      {/* The filter sidebar always renders, even with zero results — it's
+          the only way to adjust or clear a filter that over-narrowed the
+          results, so it can't disappear exactly when it's most needed. */}
+      <div className="flex flex-col gap-10 md:flex-row">
+        <SearchFilters categories={filterCategories} />
+        <div className="min-w-0 flex-1">
+          {books.length > 0 ? (
+            <SearchResults
+              initialBooks={books}
+              total={total}
+              filters={filters}
+              initialWishlistIds={books.filter((b) => wishlistIds.has(b.id)).map((b) => b.id)}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-24 text-center">
+              <SearchX className="h-10 w-10 text-muted-foreground" />
+              <p className="font-heading text-xl">No books found</p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                {q
+                  ? `Nothing matched "${q}". Try a different title, author, or ISBN.`
+                  : "Try widening the price range or clearing a filter."}
+              </p>
             </div>
           )}
-        </>
-      ) : (
-        <div className="flex flex-col items-center gap-3 py-24 text-center">
-          <SearchX className="h-10 w-10 text-muted-foreground" />
-          <p className="font-heading text-xl">No books found</p>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            {q
-              ? `Nothing matched "${q}". Try a different title, author, or ISBN.`
-              : "Try browsing by category from the menu instead."}
-          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
