@@ -59,13 +59,20 @@
      overflow in this rendering engine, so without this the closed drawer
      alone adds its own width as horizontal scroll. Nothing on this site
      relies on horizontal body scroll, so clipping it here is safe globally
-     rather than papering over it per-component. */
+     rather than papering over it per-component.
+     `clip`, not `hidden` — deliberately: `overflow-x: hidden` on html/body
+     establishes a new scrolling box, which breaks every `position: sticky`
+     descendant (the header included) because sticky positioning resolves
+     against the nearest scroll container, not always the viewport once one
+     exists. `clip` gets the same visual clipping without creating that
+     scroll container, so sticky elements keep resolving against the real
+     viewport. Confirmed live: the header didn't stick at all with `hidden`. */
   html {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground font-body antialiased;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
