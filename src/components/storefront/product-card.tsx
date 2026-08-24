@@ -55,7 +55,7 @@ export function ProductCard({
 
         {showWishlist && <CardWishlistButton bookId={book.id} initialInWishlist={inWishlist} />}
       </div>
-      <p className="mt-3 line-clamp-2 font-heading text-base leading-snug tracking-tight transition-colors duration-200 group-hover:text-accent">
+      <p className="mt-3 line-clamp-2 font-heading text-base leading-snug tracking-tight text-foreground transition-colors duration-200 group-hover:text-accent">
         {book.title}
       </p>
       {book.authorName && <p className="mt-1 text-sm text-muted-foreground">{book.authorName}</p>}
@@ -68,7 +68,7 @@ export function ProductCard({
             </span>
           </>
         ) : (
-          <span className="font-medium">{formatCurrency(book.sellingPrice)}</span>
+          <span className="font-medium text-foreground">{formatCurrency(book.sellingPrice)}</span>
         )}
       </div>
     </Link>
