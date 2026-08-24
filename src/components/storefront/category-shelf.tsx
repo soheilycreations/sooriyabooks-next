@@ -80,7 +80,7 @@ function FeaturedCategoryCard({ category }: { category: CategoryShelfEntry }) {
   return (
     <Link
       href={`/category/${category.slug}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-brand-50/70 transition-shadow duration-300 ease-premium hover:shadow-xl"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-brand-tint/70 transition-shadow duration-300 ease-premium hover:shadow-xl"
     >
       {category.imageUrl ? (
         <div className="relative min-h-0 flex-1 overflow-hidden p-4 md:p-5">
@@ -149,7 +149,7 @@ function FeaturedCategoryCard({ category }: { category: CategoryShelfEntry }) {
         </div>
       )}
 
-      <div className="relative z-30 flex shrink-0 items-end justify-between gap-4 border-t border-border/60 bg-brand-50 px-6 py-4 md:px-7 md:py-5">
+      <div className="relative z-30 flex shrink-0 items-end justify-between gap-4 border-t border-border/60 bg-brand-tint px-6 py-4 md:px-7 md:py-5">
         <div>
           <p className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-accent">
             <span className="h-px w-6 bg-accent/70" aria-hidden />
@@ -225,7 +225,7 @@ function CategoryCard({
   tint: boolean;
   variant: 0 | 1 | 2;
 }) {
-  const bg = tint ? "bg-secondary/50" : "bg-brand-50/60";
+  const bg = tint ? "bg-secondary/50" : "bg-brand-tint/60";
 
   if (category.imageUrl) {
     return (

@@ -22,6 +22,11 @@
     --input: 40 10% 88%;
     --ring: 37 87% 58%;
     --radius: 0.5rem;
+    /* Warm editorial accent field (category shelf, "Sooriya Books"/"New
+       Arrivals"/"Past Papers" carousels) — cream in light mode, a warm dark
+       brown-gray in dark mode, so it still reads as "the warm zone" rather
+       than flattening into the same neutral tone as --secondary. */
+    --brand-tint: 40 64% 95%;
   }
 
   .dark {
@@ -42,6 +47,7 @@
     --border: 0 0% 20%;
     --input: 0 0% 20%;
     --ring: 37 87% 58%;
+    --brand-tint: 30 15% 13%;
   }
 
   * {
@@ -70,19 +76,18 @@
    source of truth for the palette, type scale, and spacing rhythm above. */
 
 /* Pins the semantic tokens to their light-mode values regardless of the
-   site-wide dark-mode toggle. Two unrelated needs share this:
-   1) Editorial cream sections (bg-brand-50 — a fixed hex, not a token, so
-      it never changes with dark mode) need their text to stay the fixed
-      dark colour that was always readable on cream; without this, dark
-      mode's near-white --foreground gets inherited and disappears.
-   2) The homepage's dark-closing sections (final CTA, footer) render dark
-      by deliberately using --foreground/--background *swapped* (bg-foreground
-      + text-background) — a trick that only produces "dark bg, light text"
-      because in light mode --foreground is dark and --background is light.
-      Toggling real dark mode flips those two, which flips the trick and
-      inverts the whole section to a white background. Pinning to the fixed
-      light-mode values keeps the swap working the way it was designed,
-      independent of the viewer's theme choice. */
+   site-wide dark-mode toggle. Used only where a section is deliberately
+   *always* dark, not theme-dependent: the homepage's closing sections
+   (final CTA, footer) render dark by using --foreground/--background
+   *swapped* (bg-foreground + text-background) — a trick that only produces
+   "dark bg, light text" because in light mode --foreground is dark and
+   --background is light. Toggling real dark mode flips those two, which
+   un-swaps the trick and inverts the section to a white background.
+   Pinning to the fixed light-mode values keeps the swap working as
+   designed regardless of the viewer's theme choice.
+   (The editorial cream sections — category shelf, the carousel sections —
+   used to be pinned here too, but now use the theme-aware --brand-tint
+   token below instead, so they properly go dark with the rest of the site.) */
 .forced-light {
   --background: 40 33% 99%;
   --foreground: 0 0% 7%;

@@ -53,7 +53,7 @@ export default async function HomePage() {
       {sooriyaBooks.books.length > 0 && (
         // Solid cream, not white — the first beat of color right after the
         // hero photo, instead of dropping straight into a blank page.
-        <section className="forced-light bg-brand-50/80">
+        <section className="bg-brand-tint/80">
           {/* Same tight top padding as the categories section below — sits
               directly against the hero, not separated by empty space — and a
               small bottom padding since the categories section right after it
@@ -74,7 +74,7 @@ export default async function HomePage() {
         // A solid warm-gray field — distinct from the cream section above it
         // and the white one below, not just a faint tint that reads as
         // "still basically white."
-        <section id="categories" className="forced-light bg-secondary">
+        <section id="categories" className="bg-secondary">
           {/* Tighter top padding than the sections below — the hero already
               ends on a border, so this reads as a direct continuation of it
               rather than a new section separated by a block of empty space. */}
@@ -106,7 +106,7 @@ export default async function HomePage() {
         // Cream again here — alternating cream/warm-gray/white/cream/... down
         // the page reads as a deliberate rhythm rather than a repeat of the
         // section right above it.
-        <section className="forced-light border-y bg-brand-50/80 py-10 md:py-16">
+        <section className="border-y bg-brand-tint/80 py-10 md:py-16">
           <div className="container">
             <SectionHeading eyebrow="Just in" title="New Arrivals" viewAllHref="/search?new=1" />
           </div>
@@ -120,7 +120,7 @@ export default async function HomePage() {
         // Warm-gray, continuing the cream/gray/white rhythm established
         // above (New Arrivals is cream, this is gray, brand story below is
         // white) rather than repeating the section right before it.
-        <section className="forced-light bg-secondary py-10 md:py-16">
+        <section className="bg-secondary py-10 md:py-16">
           <div className="container">
             <SectionHeading
               eyebrow="Exam Season"

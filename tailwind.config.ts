@@ -56,6 +56,11 @@ const config: Config = {
           800: "#824414",
           900: "#6c3915",
         },
+        // Theme-aware version of brand-50 — cream in light mode, warm dark
+        // brown-gray in dark mode (see globals.css) — for editorial
+        // sections that should still shift with the site-wide dark toggle,
+        // unlike the fixed `brand-50` swatch above.
+        "brand-tint": "hsl(var(--brand-tint))",
       },
       fontFamily: {
         heading: ["var(--font-marcellus)", "serif"],
