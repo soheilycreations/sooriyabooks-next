@@ -3,7 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
-    formats: ["image/avif", "image/webp"],
+    // Vercel's Image Optimization API bills per unique source image
+    // per month. With ~4,800 book covers each requested at several
+    // responsive widths, the Hobby plan's quota was exhausted mid-month —
+    // every cover on the site started 402ing. Serving the originals
+    // straight from Supabase Storage (already reasonably sized) trades a
+    // bit of on-the-fly resizing/format conversion for images that never
+    // stop working.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
