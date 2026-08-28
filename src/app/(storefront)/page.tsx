@@ -152,18 +152,20 @@ export default async function HomePage() {
 
 async function FallbackHero() {
   // A wall of real covers — every tile is a genuine catalog book (see
-  // getRandomBookCovers), a different set on every visit/revalidation.
-  const covers = await getRandomBookCovers(24);
+  // getRandomBookCovers). Fetched larger than what's shown at once (see
+  // HeroCoverMosaic's VISIBLE_COUNT) so the extra covers can rotate in
+  // client-side for a subtle "live" feel, without ever refetching.
+  const covers = await getRandomBookCovers(40);
 
   return (
     <section className="relative isolate overflow-hidden border-b">
       <HeroCoverMosaic covers={covers} />
-      {/* Heavier, centered scrim than the old photo hero — this needs to
-          hold up centered white text over a busy grid of covers, not just
-          shade one side of a photo. */}
-      <div className="absolute inset-0 -z-[5] bg-black/55" />
+      {/* Lighter than a flat wash so the covers still read with real color —
+          darker toward the bottom (behind the buttons) than the middle
+          (behind "Welcome"), rather than one flat scrim over everything. */}
+      <div className="absolute inset-0 -z-[5] bg-gradient-to-b from-black/45 via-black/35 to-black/55" />
 
-      <div className="container relative flex min-h-[60vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-[65vh]">
+      <div className="container relative flex min-h-[75vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-[85vh]">
         <Reveal>
           <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
             <span className="h-px w-8 bg-accent" aria-hidden />
@@ -172,7 +174,7 @@ async function FallbackHero() {
           </p>
         </Reveal>
         <Reveal index={1}>
-          <h1 className="text-balance font-heading text-6xl leading-none tracking-tight text-white md:text-8xl">
+          <h1 className="text-balance font-heading text-7xl leading-none tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] md:text-9xl">
             Welcome
           </h1>
         </Reveal>
