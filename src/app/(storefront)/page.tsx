@@ -166,42 +166,49 @@ async function FallbackHero() {
           hero did, even though that trades away some of the covers' color. */}
       <div className="absolute inset-0 -z-[5] bg-gradient-to-b from-black/55 via-black/60 to-black/65" />
 
-      <div className="container relative flex min-h-[85vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-screen">
-        <Reveal>
-          <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
-            <span className="h-px w-8 bg-accent" aria-hidden />
-            Sooriya Publishers &middot; Since 1994
-            <span className="h-px w-8 bg-accent" aria-hidden />
-          </p>
-        </Reveal>
-        <Reveal index={1}>
-          <h1 className="text-balance font-heading text-7xl leading-none tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] md:text-9xl">
-            Welcome
-          </h1>
-        </Reveal>
-        <Reveal index={2}>
-          <p className="text-lg tracking-wide text-accent md:text-xl">sooriya online bookstore</p>
-        </Reveal>
-        <Reveal index={3}>
-          <div className="mt-4 flex flex-wrap justify-center gap-3">
-            <Button
-              size="lg"
-              variant="accent"
-              asChild
-              className="px-8 shadow-md shadow-accent/20 transition-transform duration-300 ease-premium hover:scale-[1.02]"
-            >
-              <Link href="/search">Shop All Books</Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              asChild
-              className="border-white/40 bg-transparent text-white transition-colors hover:bg-white/10"
-            >
-              <Link href="#categories">Explore Categories</Link>
-            </Button>
-          </div>
-        </Reveal>
+      <div className="container relative flex min-h-[85vh] flex-col items-center justify-center py-16 text-center md:min-h-screen">
+        {/* A dedicated dark glass panel behind the text — the global scrim
+            above has to stay light enough for the covers to still read as
+            colorful, so it alone isn't reliably dark enough wherever a
+            bright cover happens to be rotating behind the words. This panel
+            guarantees contrast no matter what's behind it. */}
+        <div className="flex flex-col items-center gap-4 rounded-3xl bg-black/45 px-8 py-10 backdrop-blur-md sm:px-16 sm:py-14">
+          <Reveal>
+            <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
+              <span className="h-px w-8 bg-accent" aria-hidden />
+              Sooriya Publishers &middot; Since 1994
+              <span className="h-px w-8 bg-accent" aria-hidden />
+            </p>
+          </Reveal>
+          <Reveal index={1}>
+            <h1 className="text-balance font-heading text-7xl leading-none tracking-tight text-white md:text-9xl">
+              Welcome
+            </h1>
+          </Reveal>
+          <Reveal index={2}>
+            <p className="text-lg tracking-wide text-white md:text-xl">sooriya online bookstore</p>
+          </Reveal>
+          <Reveal index={3}>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <Button
+                size="lg"
+                variant="accent"
+                asChild
+                className="px-8 shadow-md shadow-accent/20 transition-transform duration-300 ease-premium hover:scale-[1.02]"
+              >
+                <Link href="/search">Shop All Books</Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                asChild
+                className="border-white/40 bg-transparent text-white transition-colors hover:bg-white/10"
+              >
+                <Link href="#categories">Explore Categories</Link>
+              </Button>
+            </div>
+          </Reveal>
+        </div>
       </div>
     </section>
   );

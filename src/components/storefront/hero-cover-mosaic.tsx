@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { BookCoverTile } from "@/lib/catalog/queries";
 
 const VISIBLE_COUNT = 24;
-const STEP_INTERVAL_MS = 450;
+const STEP_INTERVAL_MS = 900;
 
 /**
  * Full-bleed grid of real book covers behind the hero's "Welcome" text —

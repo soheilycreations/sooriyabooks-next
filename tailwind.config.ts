@@ -96,7 +96,7 @@ const config: Config = {
         "fade-up": "fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
         "scale-in": "scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         "cart-pulse": "cart-pulse 0.4s ease-out",
-        "cover-fade": "cover-fade 1.4s ease-in-out",
+        "cover-fade": "cover-fade 2s ease-in-out",
       },
       transitionTimingFunction: {
         premium: "cubic-bezier(0.16, 1, 0.3, 1)",
