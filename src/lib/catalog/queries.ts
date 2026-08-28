@@ -87,6 +87,54 @@ export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
   return (fallback ?? []).map(mapBookRowToCard);
 }
 
+export interface BookCoverTile {
+  id: string;
+  title: string;
+  coverUrl: string;
+}
+
+/**
+ * A handful of real cover images for decorative mosaics (the homepage hero
+ * fallback) — not a recommendation, just visual texture, so a cheap
+ * random-offset page beats sorting the whole ~4,800-row table by random().
+ * Only books with an actual uploaded cover are eligible (inner join).
+ */
+export async function getRandomBookCovers(limit: number): Promise<BookCoverTile[]> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("books")
+    .select("id", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  const total = count ?? 0;
+  if (total === 0) return [];
+
+  const offset = Math.floor(Math.random() * Math.max(1, total - limit));
+
+  const { data } = await supabase
+    .from("books")
+    .select("id, title, book_images!inner ( is_primary, sort_order, media_assets ( storage_path ) )")
+    .eq("is_active", true)
+    .order("id")
+    .range(offset, offset + limit - 1);
+
+  return (data ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((row: any) => {
+      const images = (row.book_images ?? []) as Array<{
+        is_primary: boolean;
+        sort_order: number;
+        media_assets: { storage_path: string } | null;
+      }>;
+      const primary = [...images].sort(
+        (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+      )[0];
+      const coverUrl = resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
+      return coverUrl ? { id: row.id as string, title: decodeHtmlEntities(row.title as string), coverUrl } : null;
+    })
+    .filter((tile): tile is BookCoverTile => tile !== null);
+}
+
 /**
  * Same filter shape as the /search page (title/isbn/sku ilike, active only)
  * — factored out so the header's live search overlay and the full search

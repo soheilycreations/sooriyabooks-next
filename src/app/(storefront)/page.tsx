@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/storefront/product-card";
 import { HeroSlider } from "@/components/storefront/hero-slider";
-import { HeroParallaxImage } from "@/components/storefront/hero-parallax-image";
+import { HeroCoverMosaic } from "@/components/storefront/hero-cover-mosaic";
 import { SectionHeading } from "@/components/storefront/section-heading";
 import { CategoryShelf } from "@/components/storefront/category-shelf";
 import { BrandStory } from "@/components/storefront/brand-story";
@@ -16,6 +16,7 @@ import {
   getBooksByCategory,
   getCategoryShelfData,
   getStoreStats,
+  getRandomBookCovers,
 } from "@/lib/catalog/queries";
 import { getActiveHeroSlides } from "@/lib/content/queries";
 import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
@@ -149,35 +150,37 @@ export default async function HomePage() {
   );
 }
 
-function FallbackHero() {
+async function FallbackHero() {
+  // A wall of real covers — every tile is a genuine catalog book (see
+  // getRandomBookCovers), a different set on every visit/revalidation.
+  const covers = await getRandomBookCovers(24);
+
   return (
     <section className="relative isolate overflow-hidden border-b">
-      <HeroParallaxImage src="/brand/store-hero.jpg" alt="Sooriya Publishers bookstore in Sri Lanka" />
-      {/* Overlay is left-weighted and fairly light — just enough for the text
-          to read clearly without flattening the photo into a dark backdrop. */}
-      <div className="absolute inset-0 -z-[5] bg-gradient-to-r from-black/70 via-black/35 to-black/5" />
-      <div className="absolute inset-0 -z-[5] bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+      <HeroCoverMosaic covers={covers} />
+      {/* Heavier, centered scrim than the old photo hero — this needs to
+          hold up centered white text over a busy grid of covers, not just
+          shade one side of a photo. */}
+      <div className="absolute inset-0 -z-[5] bg-black/55" />
 
-      <div className="container relative flex min-h-[70vh] flex-col justify-center gap-5 py-16 md:min-h-[75vh] lg:min-h-[80vh]">
+      <div className="container relative flex min-h-[60vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-[65vh]">
         <Reveal>
           <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
             <span className="h-px w-8 bg-accent" aria-hidden />
             Sooriya Publishers &middot; Since 1994
+            <span className="h-px w-8 bg-accent" aria-hidden />
           </p>
         </Reveal>
         <Reveal index={1}>
-          <h1 className="max-w-2xl text-balance font-heading text-4xl leading-[1.08] tracking-tight text-white md:text-6xl lg:text-7xl lg:leading-[1.05]">
-            Discover Your Next Great Read.
+          <h1 className="text-balance font-heading text-6xl leading-none tracking-tight text-white md:text-8xl">
+            Welcome
           </h1>
         </Reveal>
         <Reveal index={2}>
-          <p className="max-w-md text-base leading-relaxed text-white/85 md:text-lg">
-            Explore books from Sooriya Publishers, including fiction, non-fiction, academic,
-            children&apos;s and translated books, with delivery across Sri Lanka.
-          </p>
+          <p className="text-lg tracking-wide text-accent md:text-xl">sooriya online bookstore</p>
         </Reveal>
         <Reveal index={3}>
-          <div className="mt-2 flex flex-wrap gap-3">
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
             <Button
               size="lg"
               variant="accent"
