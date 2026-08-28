@@ -84,6 +84,10 @@ const config: Config = {
           "35%": { transform: "scale(1.25)" },
           "60%": { transform: "scale(0.95)" },
         },
+        // Slower, gentler than fade-in — for the hero mosaic's rotating
+        // covers, where each swap should read as a soft crossfade rather
+        // than a quick blink.
+        "cover-fade": { from: { opacity: "0" }, to: { opacity: "1" } },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -92,6 +96,7 @@ const config: Config = {
         "fade-up": "fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
         "scale-in": "scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         "cart-pulse": "cart-pulse 0.4s ease-out",
+        "cover-fade": "cover-fade 1.4s ease-in-out",
       },
       transitionTimingFunction: {
         premium: "cubic-bezier(0.16, 1, 0.3, 1)",

@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { BookCoverTile } from "@/lib/catalog/queries";
 
 const VISIBLE_COUNT = 24;
-const STEP_INTERVAL_MS = 250;
+const STEP_INTERVAL_MS = 450;
 
 /**
  * Full-bleed grid of real book covers behind the hero's "Welcome" text —
@@ -51,8 +51,8 @@ export function HeroCoverMosaic({ covers }: { covers: BookCoverTile[] }) {
     <div className="absolute inset-0 -z-10 grid grid-cols-4 gap-px overflow-hidden bg-foreground sm:grid-cols-6 md:grid-cols-8">
       {visible.map((book, i) => (
         // Keying on id+slot forces a remount when a tile rotates in, which
-        // replays the fade-in animation for just that one tile.
-        <div key={`${i}-${book.id}`} className="relative aspect-[3/4] motion-safe:animate-fade-in">
+        // replays the (slow, deliberate) crossfade for just that one tile.
+        <div key={`${i}-${book.id}`} className="relative aspect-[3/4] motion-safe:animate-cover-fade">
           <Image
             src={book.coverUrl}
             alt={book.title}

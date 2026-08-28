@@ -160,10 +160,11 @@ async function FallbackHero() {
   return (
     <section className="relative isolate overflow-hidden border-b">
       <HeroCoverMosaic covers={covers} />
-      {/* Lighter than a flat wash so the covers still read with real color —
-          darker toward the bottom (behind the buttons) than the middle
-          (behind "Welcome"), rather than one flat scrim over everything. */}
-      <div className="absolute inset-0 -z-[5] bg-gradient-to-b from-black/45 via-black/35 to-black/55" />
+      {/* Darker in the center, where "Welcome" actually sits, than at the
+          very top/bottom edges — legible white text over a bright,
+          constantly-changing wall of covers needs more scrim than a photo
+          hero did, even though that trades away some of the covers' color. */}
+      <div className="absolute inset-0 -z-[5] bg-gradient-to-b from-black/55 via-black/60 to-black/65" />
 
       <div className="container relative flex min-h-[85vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-screen">
         <Reveal>
