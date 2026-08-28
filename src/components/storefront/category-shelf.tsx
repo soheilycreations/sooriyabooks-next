@@ -101,39 +101,39 @@ function FeaturedCategoryCard({ category }: { category: CategoryShelfEntry }) {
             {category.name.charAt(0)}
           </span>
 
-          <div className="relative mx-auto h-full max-w-[380px]">
+          <div className="relative mx-auto h-full w-full max-w-[460px]">
             {covers[3] && (
-              <div className="absolute bottom-0 right-0 z-[5] h-[46%]" style={{ transform: "rotate(4deg)" }}>
+              <div className="absolute bottom-0 right-0 z-[5] h-[56%]" style={{ transform: "rotate(4deg)" }}>
                 <CoverFrame
                   url={covers[3]}
-                  sizes="110px"
+                  sizes="130px"
                   className="h-full shadow-sm transition-transform duration-500 ease-premium group-hover:translate-y-[-2px]"
                 />
               </div>
             )}
             {covers[1] && (
-              <div className="absolute left-0 top-[4%] z-10 h-[70%]" style={{ transform: "rotate(-4deg)" }}>
+              <div className="absolute left-0 top-[2%] z-10 h-[82%]" style={{ transform: "rotate(-4deg)" }}>
                 <CoverFrame
                   url={covers[1]}
-                  sizes="180px"
+                  sizes="200px"
                   className="h-full transition-transform duration-500 ease-premium group-hover:-translate-y-1"
                 />
               </div>
             )}
             {covers[2] && (
-              <div className="absolute right-[6%] top-0 z-10 h-[64%]" style={{ transform: "rotate(3deg)" }}>
+              <div className="absolute right-0 top-0 z-10 h-[76%]" style={{ transform: "rotate(3deg)" }}>
                 <CoverFrame
                   url={covers[2]}
-                  sizes="160px"
+                  sizes="180px"
                   className="h-full transition-transform duration-500 ease-premium group-hover:-translate-y-1"
                 />
               </div>
             )}
             {covers[0] && (
-              <div className="absolute left-1/2 top-0 z-20 h-[94%] -translate-x-1/2">
+              <div className="absolute left-1/2 top-0 z-20 h-full -translate-x-1/2">
                 <CoverFrame
                   url={covers[0]}
-                  sizes="220px"
+                  sizes="240px"
                   priority
                   className="h-full shadow-xl transition-transform duration-500 ease-premium group-hover:-translate-y-3 group-hover:scale-[1.07] group-hover:shadow-2xl"
                 />
@@ -170,7 +170,7 @@ function FeaturedCategoryCard({ category }: { category: CategoryShelfEntry }) {
 }
 
 const cardShell =
-  "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border/70 p-3 transition-all duration-300 ease-premium hover:border-accent/50 hover:shadow-lg md:p-4";
+  "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border/70 p-2.5 transition-all duration-300 ease-premium hover:border-accent/50 hover:shadow-lg md:p-3";
 
 /** Title/count row — always `shrink-0` so it renders at full, un-clipped size regardless of how much room the cover composition above it wants. */
 function CardMeta({ category }: { category: CategoryShelfEntry }) {
@@ -262,22 +262,22 @@ function CategoryCard({
           {covers[2] && (
             <CoverFrame
               url={covers[2]}
-              sizes="100px"
-              className="z-[5] -mr-10 h-[62%] rotate-6 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1 group-hover:rotate-[10deg]"
+              sizes="110px"
+              className="z-[5] -mr-6 h-[70%] rotate-6 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1 group-hover:rotate-[10deg]"
             />
           )}
           {covers[1] && (
             <CoverFrame
               url={covers[1]}
-              sizes="120px"
-              className="z-10 -mr-7 h-[75%] -rotate-3 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:-rotate-6 group-hover:scale-[1.04]"
+              sizes="130px"
+              className="z-10 -mr-4 h-[84%] -rotate-3 shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:-rotate-6 group-hover:scale-[1.04]"
             />
           )}
           <CoverFrame
             url={primaryCover}
-            sizes="140px"
+            sizes="150px"
             priority
-            className="relative z-20 h-[92%] rotate-2 shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.08] group-hover:shadow-2xl"
+            className="relative z-20 h-full rotate-2 shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.08] group-hover:shadow-2xl"
           />
         </div>
       )}
@@ -286,41 +286,41 @@ function CategoryCard({
         <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
           <CoverFrame
             url={primaryCover}
-            sizes="150px"
+            sizes="160px"
             priority
-            className="relative z-20 h-[92%] shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.08] group-hover:shadow-2xl"
+            className="relative z-20 h-full shadow-lg transition-transform duration-300 ease-premium group-hover:-translate-y-2 group-hover:scale-[1.08] group-hover:shadow-2xl"
           />
           {covers[1] && (
             <CoverFrame
               url={covers[1]}
-              sizes="90px"
-              className="absolute bottom-0 right-2 z-10 h-[52%] rotate-[6deg] shadow-md transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.05] md:right-3"
+              sizes="100px"
+              className="absolute bottom-0 right-0 z-10 h-[64%] rotate-[6deg] shadow-md transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.05]"
             />
           )}
           {covers[2] && (
             <CoverFrame
               url={covers[2]}
-              sizes="70px"
-              className="absolute left-1 top-1 z-10 h-[36%] -rotate-[8deg] shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1"
+              sizes="80px"
+              className="absolute left-0 top-0 z-10 h-[46%] -rotate-[8deg] shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1"
             />
           )}
         </div>
       )}
 
       {variant === 2 && (
-        <div className="relative flex min-h-0 flex-1 items-end justify-center gap-1.5 overflow-hidden pb-1">
+        <div className="relative flex min-h-0 flex-1 items-end justify-center gap-1 overflow-hidden">
           {covers.slice(0, 4).map((url, idx) => (
             <CoverFrame
               key={url}
               url={url}
-              sizes="90px"
+              sizes="100px"
               priority={idx === 0}
               className={cn(
                 "shadow-sm transition-transform duration-300 ease-premium group-hover:-translate-y-1.5 group-hover:scale-[1.06] group-hover:shadow-lg",
-                idx === 0 && "h-[64%] -rotate-3",
-                idx === 1 && "h-[78%] rotate-1",
-                idx === 2 && "h-[70%] rotate-3",
-                idx === 3 && "h-[58%] -rotate-2",
+                idx === 0 && "h-[74%] -rotate-3",
+                idx === 1 && "h-[92%] rotate-1",
+                idx === 2 && "h-[82%] rotate-3",
+                idx === 3 && "h-[68%] -rotate-2",
               )}
             />
           ))}
