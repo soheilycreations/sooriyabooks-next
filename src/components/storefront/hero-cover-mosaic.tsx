@@ -5,16 +5,17 @@ import Image from "next/image";
 import type { BookCoverTile } from "@/lib/catalog/queries";
 
 const VISIBLE_COUNT = 24;
-const ROTATE_INTERVAL_MS = 3500;
+const ROTATE_INTERVAL_MS = 1200;
+const SWAPS_PER_TICK = 2;
 
 /**
  * Full-bleed grid of real book covers behind the hero's "Welcome" text —
  * every tile is a genuine catalog cover (see getRandomBookCovers), not
  * stock art, so the banner is honestly "our books" the way a customer
- * asked for. `covers` is fetched larger than VISIBLE_COUNT on purpose: the
- * extra tiles are the rotation pool, so one tile quietly swaps to a fresh
- * cover every few seconds — a small "live" feel — without ever refetching.
- * Skipped entirely for prefers-reduced-motion.
+ * asked for. `covers` is fetched much larger than VISIBLE_COUNT on
+ * purpose: the extra tiles are the rotation pool, so a couple of tiles
+ * keep quietly swapping to fresh covers on a steady beat — a visibly
+ * "alive" wall — without ever refetching. Skipped for prefers-reduced-motion.
  */
 export function HeroCoverMosaic({ covers }: { covers: BookCoverTile[] }) {
   const [visible, setVisible] = useState<BookCoverTile[]>(() => covers.slice(0, VISIBLE_COUNT));
@@ -25,14 +26,15 @@ export function HeroCoverMosaic({ covers }: { covers: BookCoverTile[] }) {
 
     const id = window.setInterval(() => {
       setVisible((current) => {
-        const shownIds = new Set(current.map((c) => c.id));
-        const pool = covers.filter((c) => !shownIds.has(c.id));
-        if (pool.length === 0) return current;
-        const next = pool[Math.floor(Math.random() * pool.length)];
-        if (!next) return current;
-        const slot = Math.floor(Math.random() * current.length);
         const updated = [...current];
-        updated[slot] = next;
+        for (let n = 0; n < SWAPS_PER_TICK; n++) {
+          const shownIds = new Set(updated.map((c) => c.id));
+          const pool = covers.filter((c) => !shownIds.has(c.id));
+          const next = pool[Math.floor(Math.random() * pool.length)];
+          if (!next) continue;
+          const slot = Math.floor(Math.random() * updated.length);
+          updated[slot] = next;
+        }
         return updated;
       });
     }, ROTATE_INTERVAL_MS);

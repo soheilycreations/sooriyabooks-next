@@ -152,10 +152,10 @@ export default async function HomePage() {
 
 async function FallbackHero() {
   // A wall of real covers — every tile is a genuine catalog book (see
-  // getRandomBookCovers). Fetched larger than what's shown at once (see
-  // HeroCoverMosaic's VISIBLE_COUNT) so the extra covers can rotate in
-  // client-side for a subtle "live" feel, without ever refetching.
-  const covers = await getRandomBookCovers(40);
+  // getRandomBookCovers). Fetched much larger than what's shown at once
+  // (see HeroCoverMosaic's VISIBLE_COUNT) so tiles have a deep pool of
+  // fresh covers to keep rotating through client-side, without refetching.
+  const covers = await getRandomBookCovers(90);
 
   return (
     <section className="relative isolate overflow-hidden border-b">
@@ -165,7 +165,7 @@ async function FallbackHero() {
           (behind "Welcome"), rather than one flat scrim over everything. */}
       <div className="absolute inset-0 -z-[5] bg-gradient-to-b from-black/45 via-black/35 to-black/55" />
 
-      <div className="container relative flex min-h-[75vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-[85vh]">
+      <div className="container relative flex min-h-[85vh] flex-col items-center justify-center gap-4 py-16 text-center md:min-h-screen">
         <Reveal>
           <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.25em] text-accent">
             <span className="h-px w-8 bg-accent" aria-hidden />
