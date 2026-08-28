@@ -2,11 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-// Official artwork — see docs/design-system.md §1. Do not redraw, recolor, or
+// Official artwork — see docs/design-system.md §1. `sooriya-logo.png` has a
+// solid black background (a design decision, not a bug — kept as supplied
+// rather than silently making it transparent). Do not redraw, recolor, or
 // alter proportions; only resize via the `height` prop (width follows the
 // source aspect ratio automatically).
 const LOGO_FULL_SRC = "/brand/sooriya-logo.png";
-const LOGO_FULL_ASPECT = 700 / 200;
+const LOGO_FULL_ASPECT = 1449 / 236;
 
 const LOGO_MARK_SRC = "/brand/sooriya-mark.png";
 const LOGO_MARK_ASPECT = 1;

@@ -7,16 +7,15 @@ restrained. Not a generic e-commerce template.
 
 ## 1. Official Brand Asset
 
-- **Logo (source of truth):** `https://sooriyabooks.lk/wp-content/uploads/2023/08/BOOKS.LK-5-300x86.png`
-  Full-resolution original pulled from the same WordPress media file family
-  (`BOOKS.LK-5.png`, 700×200) and stored at `public/brand/sooriya-logo.png`.
-  Same artwork, higher resolution — not redrawn, recolored, or altered.
+- **Logo (source of truth):** admin-supplied artwork (`Group-176.png`, 1449×236),
+  stored at `public/brand/sooriya-logo.png`. Has a solid black background by
+  design — not transparent, kept as supplied rather than altered.
 - **Sun mark (icon-only):** `public/brand/sooriya-mark.png` (512×512, from
   `Sooriya-icon-512x512-1.png`, the same file the live WordPress site uses as
   its favicon). Used for compact mobile header and the site favicon
   (`src/app/icon.png`).
 - **Component:** `src/components/shared/logo.tsx` — `<Logo variant="full" | "mark" height={n} />`.
-  Width is always derived from the source aspect ratio (3.5:1 for `full`,
+  Width is always derived from the source aspect ratio (~6.14:1 for `full`,
   1:1 for `mark`) — never set width and height independently, never stretch.
   Used in: header (desktop = `full`, mobile = `mark`), footer (`full`), auth
   layout (`full`).
