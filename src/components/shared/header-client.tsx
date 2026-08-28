@@ -77,6 +77,9 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
         <div className="flex-1" aria-hidden />
 
         <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
+          <Link href="/" className={cn(navLinkClass, "px-3 py-2")}>
+            Home
+          </Link>
           <MegaMenu
             categories={categories}
             open={overlay === "menu"}

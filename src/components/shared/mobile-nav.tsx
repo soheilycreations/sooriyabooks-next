@@ -56,6 +56,13 @@ export function MobileNav({ categories }: { categories: NavCategory[] }) {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-5 py-6" aria-label="Site">
+            <ul className="flex flex-col">
+              <li>
+                <Link href="/" onClick={() => setOpen(false)} className={drawerLinkClass}>
+                  Home
+                </Link>
+              </li>
+            </ul>
             <AccordionPrimitive.Root type="single" collapsible defaultValue="shop">
               <AccordionPrimitive.Item value="shop" className="border-b">
                 <AccordionPrimitive.Header>
