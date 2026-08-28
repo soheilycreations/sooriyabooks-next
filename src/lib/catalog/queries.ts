@@ -342,7 +342,7 @@ export interface CategoryShelfEntry {
   description: string | null;
   imageUrl: string | null;
   bookCount: number;
-  /** Real cover URLs of active books in this category (0-4), deduped across
+  /** Real cover URLs of active books in this category (0-6), deduped across
    *  every category on the shelf — used to compose the tile from actual
    *  product imagery instead of an invented one. Empty when the category
    *  currently has no covered books. */
@@ -430,12 +430,12 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
   // sit in more than one category — never shows up in two different tiles.
   const rawCovers = await Promise.all(ordered.map((c) => getCategoryCoverUrls(supabase, c.id, 8)));
   const usedUrls = new Set<string>();
-  // Every tile (featured included) gets up to 4 covers so the card can
-  // compose a real multi-cover editorial layout (overlapping fan, dominant
-  // + floating pair, a mini shelf) that fills its space instead of leaving
-  // it mostly empty — still just a deeper slice of the same already-fetched
-  // real data, not a new query.
-  const wanted = 4;
+  // Every tile (featured included) gets up to 6 covers so the card can
+  // fill its full area edge-to-edge with a small grid of real covers
+  // instead of a sparse cluster — still just a deeper slice of the same
+  // already-fetched real data, not a new query. Small cards only use 4 of
+  // these; the larger featured tile uses up to all 6.
+  const wanted = 6;
   const covers = rawCovers.map((urls) => {
     const picked: string[] = [];
     for (const url of urls) {
