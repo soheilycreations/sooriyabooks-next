@@ -1,24 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { BookCoverTile } from "@/lib/catalog/queries";
 
 const VISIBLE_COUNT = 24;
-const ROTATE_INTERVAL_MS = 1200;
-const SWAPS_PER_TICK = 2;
+const STEP_INTERVAL_MS = 250;
 
 /**
  * Full-bleed grid of real book covers behind the hero's "Welcome" text —
  * every tile is a genuine catalog cover (see getRandomBookCovers), not
  * stock art, so the banner is honestly "our books" the way a customer
  * asked for. `covers` is fetched much larger than VISIBLE_COUNT on
- * purpose: the extra tiles are the rotation pool, so a couple of tiles
- * keep quietly swapping to fresh covers on a steady beat — a visibly
- * "alive" wall — without ever refetching. Skipped for prefers-reduced-motion.
+ * purpose: the extra tiles are the rotation pool. Tiles swap to a fresh
+ * cover one at a time, in grid order, so it reads as a wave rippling
+ * across the wall (left to right, row by row) rather than random flicker.
+ * Skipped for prefers-reduced-motion.
  */
 export function HeroCoverMosaic({ covers }: { covers: BookCoverTile[] }) {
   const [visible, setVisible] = useState<BookCoverTile[]>(() => covers.slice(0, VISIBLE_COUNT));
+  const stepRef = useRef(0);
+  const poolPositionRef = useRef(VISIBLE_COUNT);
 
   useEffect(() => {
     if (covers.length <= VISIBLE_COUNT) return;
@@ -26,18 +28,21 @@ export function HeroCoverMosaic({ covers }: { covers: BookCoverTile[] }) {
 
     const id = window.setInterval(() => {
       setVisible((current) => {
+        const slot = stepRef.current % current.length;
+        stepRef.current += 1;
+
+        // Walk the pool in order (wrapping) instead of picking randomly —
+        // paired with the sequential slot, this is what makes the same
+        // wave loop feel identical on every pass instead of reshuffling.
+        const next = covers[poolPositionRef.current % covers.length];
+        poolPositionRef.current += 1;
+        if (!next || next.id === current[slot]?.id) return current;
+
         const updated = [...current];
-        for (let n = 0; n < SWAPS_PER_TICK; n++) {
-          const shownIds = new Set(updated.map((c) => c.id));
-          const pool = covers.filter((c) => !shownIds.has(c.id));
-          const next = pool[Math.floor(Math.random() * pool.length)];
-          if (!next) continue;
-          const slot = Math.floor(Math.random() * updated.length);
-          updated[slot] = next;
-        }
+        updated[slot] = next;
         return updated;
       });
-    }, ROTATE_INTERVAL_MS);
+    }, STEP_INTERVAL_MS);
 
     return () => window.clearInterval(id);
   }, [covers]);
