@@ -18,7 +18,7 @@ export interface BookCardData {
   lowStock?: boolean;
 }
 
-function resolveCoverUrl(storagePath: string | null): string | null {
+export function resolveCoverUrl(storagePath: string | null): string | null {
   if (!storagePath) return null;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return null;

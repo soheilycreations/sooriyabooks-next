@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { FormAlert } from "@/components/shared/form-alert";
+import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { trackGuestOrder, type GuestOrderDetails } from "@/lib/orders/guest-actions";
 
@@ -36,6 +37,25 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
     const currentStepIndex = STATUS_STEPS.indexOf(order.status as (typeof STATUS_STEPS)[number]);
     return (
       <div>
+        {justPlaced && (
+          <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 py-10 text-center">
+            <OrderPackAnimation
+              orderNumber={order.orderNumber}
+              covers={order.items
+                .filter((i): i is typeof i & { coverUrl: string } => i.coverUrl !== null)
+                .map((i) => ({ url: i.coverUrl, title: i.title }))}
+            />
+            <div>
+              <p className="font-heading text-2xl">Order Placed</p>
+              <p className="mt-1 text-muted-foreground">
+                Thank you — order <span className="font-medium text-foreground">{order.orderNumber}</span> has been
+                placed successfully.
+              </p>
+            </div>
+            <p className="font-heading text-xl text-accent">{formatCurrency(order.grandTotal)}</p>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-heading text-2xl leading-tight md:text-3xl">Order {order.orderNumber}</h1>

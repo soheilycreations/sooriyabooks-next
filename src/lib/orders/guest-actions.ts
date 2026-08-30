@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveCoverUrl } from "@/lib/catalog/queries";
 
 export interface GuestOrderDetails {
   orderId: string;
@@ -20,7 +21,7 @@ export interface GuestOrderDetails {
   postalCode: string | null;
   cityName: string | null;
   districtName: string | null;
-  items: { title: string; quantity: number; lineTotal: number }[];
+  items: { title: string; quantity: number; lineTotal: number; coverUrl: string | null }[];
 }
 
 /**
@@ -76,7 +77,14 @@ export async function trackGuestOrder(
       postalCode: row.postal_code,
       cityName: row.city_name,
       districtName: row.district_name,
-      items: (row.items ?? []) as { title: string; quantity: number; lineTotal: number }[],
+      items: ((row.items ?? []) as { title: string; quantity: number; lineTotal: number; coverPath: string | null }[]).map(
+        (item) => ({
+          title: item.title,
+          quantity: item.quantity,
+          lineTotal: item.lineTotal,
+          coverUrl: resolveCoverUrl(item.coverPath),
+        }),
+      ),
     },
   };
 }

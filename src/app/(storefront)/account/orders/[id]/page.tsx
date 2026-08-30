@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
+import { resolveCoverUrl } from "@/lib/catalog/queries";
 
 const STATUS_STEPS = ["confirmed", "packed", "shipped", "delivered"] as const;
 
@@ -35,7 +36,10 @@ export default async function OrderDetailPage({
 
   const { data: items } = await supabase
     .from("order_items")
-    .select("id, title_snapshot, unit_price, quantity, line_total")
+    .select(
+      `id, title_snapshot, unit_price, quantity, line_total,
+       books ( book_images ( is_primary, sort_order, media_assets ( storage_path ) ) )`,
+    )
     .eq("order_id", id);
 
   const currentStepIndex = STATUS_STEPS.indexOf(order.status as (typeof STATUS_STEPS)[number]);
@@ -44,11 +48,27 @@ export default async function OrderDetailPage({
   const city = address?.shipping_cities;
   const district = city?.shipping_districts;
 
+  const covers = (items ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((item: any) => {
+      const images = (item.books?.book_images ?? []) as Array<{
+        is_primary: boolean;
+        sort_order: number;
+        media_assets: { storage_path: string } | null;
+      }>;
+      const primary = [...images].sort(
+        (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+      )[0];
+      const url = resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
+      return url ? { url, title: item.title_snapshot as string } : null;
+    })
+    .filter((c): c is { url: string; title: string } => c !== null);
+
   return (
     <div>
       {placed === "1" && (
         <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 py-10 text-center">
-          <CheckCircle2 className="h-10 w-10 text-accent" />
+          <OrderPackAnimation orderNumber={order.order_number} covers={covers} />
           <div>
             <p className="font-heading text-2xl">Order Confirmed</p>
             <p className="mt-1 text-muted-foreground">
