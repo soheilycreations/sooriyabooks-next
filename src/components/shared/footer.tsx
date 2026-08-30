@@ -25,6 +25,7 @@ const FOOTER_COLUMNS_STATIC = [
     title: "Customer Care",
     links: [
       { href: "/account/orders", label: "Track Order" },
+      { href: "/track-order", label: "Track a Guest Order" },
       { href: "/contact", label: "Contact Us" },
       { href: "/terms", label: "Terms & Conditions" },
       { href: "/privacy", label: "Privacy Policy" },

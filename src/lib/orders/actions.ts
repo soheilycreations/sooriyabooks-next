@@ -11,7 +11,9 @@ import type { ActionResult } from "@/lib/auth/actions";
  * rows, and stock is atomically reserved via reserve_stock() so concurrent
  * checkouts can't oversell (see supabase/migrations/0002_functions.sql).
  */
-export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ orderId: string; orderNumber: string }>> {
+export async function createOrder(
+  input: CheckoutInput,
+): Promise<ActionResult<{ orderId: string; orderNumber: string; isGuest: boolean }>> {
   const parsed = checkoutSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid checkout data" };
@@ -23,8 +25,39 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ 
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Guest checkout: RLS on addresses/orders/order_items is keyed to
+  // `customer_id = auth.uid()` with plain `=`, which a guest (both sides
+  // null) can never satisfy — so this delegates the entire order to
+  // place_guest_order(), a SECURITY DEFINER function that does the whole
+  // thing (re-pricing, address, order, order_items, stock reservation,
+  // coupon, COD confirmation) as one atomic transaction, bypassing RLS the
+  // same way reserve_stock()/confirm_cod_order() already do for the
+  // authenticated path below. See supabase/migrations/0019_guest_checkout.sql.
   if (!user) {
-    return { ok: false, error: "Please sign in to place an order" };
+    if (!data.newAddress) {
+      return { ok: false, error: "A delivery address is required" };
+    }
+    const { data: guestOrder, error: guestError } = await supabase.rpc("place_guest_order", {
+      p_recipient_name: data.newAddress.recipientName,
+      p_phone: data.newAddress.phone,
+      p_line1: data.newAddress.line1,
+      p_line2: data.newAddress.line2 || "",
+      p_city_id: data.cityId,
+      p_postal_code: data.newAddress.postalCode || "",
+      p_payment_method: data.paymentMethod,
+      p_items: data.items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
+      p_coupon_code: data.couponCode || undefined,
+      p_customer_note: data.customerNote || undefined,
+    });
+    if (guestError) {
+      console.error("createOrder (guest): place_guest_order failed:", guestError.message);
+      return { ok: false, error: guestError.message || "Could not create order. Please try again." };
+    }
+    const row = guestOrder?.[0];
+    if (!row) {
+      return { ok: false, error: "Could not create order. Please try again." };
+    }
+    return { ok: true, data: { orderId: row.order_id, orderNumber: row.order_number, isGuest: true } };
   }
 
   // 0. Self-heal a missing profiles row before it can break the
@@ -273,5 +306,5 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<{ 
     }
   }
 
-  return { ok: true, data: { orderId: order.id, orderNumber: order.order_number } };
+  return { ok: true, data: { orderId: order.id, orderNumber: order.order_number, isGuest: false } };
 }

@@ -77,8 +77,11 @@ export function CheckoutForm() {
       }
       clear();
 
+      const { orderId, orderNumber, isGuest } = result.data;
+      const orderUrl = isGuest ? `/track-order/${orderNumber}?placed=1` : `/account/orders/${orderId}?placed=1`;
+
       if (paymentMethod === "bank_ipg") {
-        const paymentResult = await initiateBankPayment(result.data.orderId);
+        const paymentResult = await initiateBankPayment(orderId);
         if (paymentResult.ok) {
           window.location.href = paymentResult.data.redirectUrl;
           return;
@@ -87,11 +90,11 @@ export function CheckoutForm() {
         // customer see it and retry payment from there rather than losing
         // the order entirely.
         setError(`${paymentResult.error} — your order was saved, you can retry payment from your order page.`);
-        router.push(`/account/orders/${result.data.orderId}`);
+        router.push(isGuest ? `/track-order/${orderNumber}` : `/account/orders/${orderId}`);
         return;
       }
 
-      router.push(`/account/orders/${result.data.orderId}?placed=1`);
+      router.push(orderUrl);
     });
   }
 

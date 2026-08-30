@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -18,7 +18,7 @@ export type Database = {
         Row: {
           city_id: string
           created_at: string
-          customer_id: string
+          customer_id: string | null
           id: string
           is_default: boolean
           label: string | null
@@ -31,7 +31,7 @@ export type Database = {
         Insert: {
           city_id: string
           created_at?: string
-          customer_id: string
+          customer_id?: string | null
           id?: string
           is_default?: boolean
           label?: string | null
@@ -44,7 +44,7 @@ export type Database = {
         Update: {
           city_id?: string
           created_at?: string
-          customer_id?: string
+          customer_id?: string | null
           id?: string
           is_default?: boolean
           label?: string | null
@@ -1244,18 +1244,21 @@ export type Database = {
           district_id: string
           id: string
           name: string
+          postal_code: string | null
           sort_order: number
         }
         Insert: {
           district_id: string
           id?: string
           name: string
+          postal_code?: string | null
           sort_order?: number
         }
         Update: {
           district_id?: string
           id?: string
           name?: string
+          postal_code?: string | null
           sort_order?: number
         }
         Relationships: [
@@ -1588,12 +1591,47 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["staff_role"]
       }
+      get_guest_order_for_payment: {
+        Args: { p_order_id: string }
+        Returns: {
+          grand_total: number
+          order_id: string
+          order_number: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+        }[]
+      }
       is_staff: { Args: never; Returns: boolean }
       mark_order_failed: {
         Args: { p_note?: string; p_order_id: string }
         Returns: undefined
       }
       next_order_number: { Args: never; Returns: string }
+      place_guest_order: {
+        Args: {
+          p_city_id: string
+          p_coupon_code?: string
+          p_customer_note?: string
+          p_items: Json
+          p_line1: string
+          p_line2: string
+          p_payment_method: Database["public"]["Enums"]["payment_method"]
+          p_phone: string
+          p_postal_code: string
+          p_recipient_name: string
+        }
+        Returns: {
+          order_id: string
+          order_number: string
+        }[]
+      }
+      record_guest_payment_transaction: {
+        Args: {
+          p_amount: number
+          p_order_id: string
+          p_provider_reference: string
+        }
+        Returns: undefined
+      }
       release_reserved_stock: {
         Args: { p_book_id: string; p_order_id: string; p_quantity: number }
         Returns: undefined
@@ -1604,6 +1642,29 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      track_guest_order: {
+        Args: { p_order_number: string; p_phone: string }
+        Returns: {
+          city_name: string
+          discount_total: number
+          district_name: string
+          grand_total: number
+          items: Json
+          line1: string
+          line2: string
+          order_id: string
+          order_number: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          phone: string
+          placed_at: string
+          postal_code: string
+          recipient_name: string
+          shipping_total: number
+          status: Database["public"]["Enums"]["order_status"]
+          subtotal: number
+        }[]
+      }
       validate_and_redeem_coupon: {
         Args: {
           p_code: string
