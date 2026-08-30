@@ -15,7 +15,9 @@
     "migrate:dry-run": "node scripts/etl/migrate.mjs --dry-run",
     "migrate:run": "node scripts/etl/migrate.mjs",
     "migrate:images:dry-run": "node scripts/etl/migrate-images.mjs --dry-run",
-    "migrate:images:run": "node scripts/etl/migrate-images.mjs"
+    "migrate:images:run": "node scripts/etl/migrate-images.mjs",
+    "migrate:category-parents:dry-run": "node scripts/etl/fix-category-parents.mjs --dry-run",
+    "migrate:category-parents:run": "node scripts/etl/fix-category-parents.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

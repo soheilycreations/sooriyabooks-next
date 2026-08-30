@@ -98,25 +98,31 @@ export interface BookCoverTile {
  * fallback) — not a recommendation, just visual texture, so a cheap
  * random-offset page beats sorting the whole ~4,800-row table by random().
  * Only books with an actual uploaded cover are eligible (inner join).
+ *
+ * Restricted to the "Sooriya Books" imprint (that category plus its direct
+ * sub-categories, e.g. "Translations") — the hero is meant to showcase our
+ * own publications specifically, not the wider multi-publisher catalog.
  */
 export async function getRandomBookCovers(limit: number): Promise<BookCoverTile[]> {
   const supabase = await createClient();
-  const { count } = await supabase
-    .from("books")
-    .select("id", { count: "exact", head: true })
-    .eq("is_active", true);
 
-  const total = count ?? 0;
-  if (total === 0) return [];
+  const { data: parentCategory } = await supabase.from("categories").select("id").eq("slug", "sooriya-books").maybeSingle();
+  if (!parentCategory) return [];
+  const { data: childCategories } = await supabase.from("categories").select("id").eq("parent_id", parentCategory.id);
+  const categoryIds = [parentCategory.id, ...(childCategories ?? []).map((c) => c.id)];
 
-  const offset = Math.floor(Math.random() * Math.max(1, total - limit));
+  const { data: bookCategoryRows } = await supabase.from("book_categories").select("book_id").in("category_id", categoryIds);
+  const bookIds = [...new Set((bookCategoryRows ?? []).map((r) => r.book_id))];
+  if (bookIds.length === 0) return [];
+
+  const offset = Math.floor(Math.random() * Math.max(1, bookIds.length - limit));
+  const pageIds = bookIds.slice(offset, offset + limit);
 
   const { data } = await supabase
     .from("books")
     .select("id, title, book_images!inner ( is_primary, sort_order, media_assets ( storage_path ) )")
     .eq("is_active", true)
-    .order("id")
-    .range(offset, offset + limit - 1);
+    .in("id", pageIds);
 
   return (data ?? [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

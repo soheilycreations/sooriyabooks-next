@@ -220,6 +220,36 @@ async function main() {
   for (const [k, v] of await resolveTaxonomyTerms(categoryTermIds, "categories")) categoryIdMap.set(k, v);
   console.log(`  -> ${categoryIdMap.size} categories\n`);
 
+  // wp_term_taxonomy.parent is a WP term_id (0 = top-level), not a
+  // term_taxonomy_id, so it has to be resolved back through taxonomyByTTId
+  // to find the parent's own category row. resolveTaxonomyTerms() above
+  // never wrote parent_id at all — every imported category ended up
+  // top-level regardless of its real WordPress hierarchy.
+  console.log("Linking category parents...");
+  const catTermIdToCategoryId = new Map(); // wp term_id -> supabase category id (product_cat only)
+  for (const [ttId, catId] of categoryIdMap) {
+    const tt = taxonomyByTTId.get(ttId);
+    if (tt) catTermIdToCategoryId.set(tt.term_id, catId);
+  }
+  let parentLinkCount = 0;
+  for (const [ttId, catId] of categoryIdMap) {
+    const tt = taxonomyByTTId.get(ttId);
+    if (!tt || !tt.parent || tt.parent === "0") continue;
+    const parentCategoryId = catTermIdToCategoryId.get(tt.parent);
+    if (!parentCategoryId || parentCategoryId === catId) continue;
+    if (DRY_RUN) {
+      parentLinkCount++;
+      continue;
+    }
+    const { error } = await supabase.from("categories").update({ parent_id: parentCategoryId }).eq("id", catId);
+    if (error) {
+      console.error(`  ! Failed to set parent for category ${catId}:`, error.message);
+      continue;
+    }
+    parentLinkCount++;
+  }
+  console.log(`  -> ${parentLinkCount} category parent links set\n`);
+
   console.log(`Resolving authors (taxonomy: ${AUTHOR_TAXONOMY})...`);
   for (const [k, v] of await resolveTaxonomyTerms(authorTermIds, "authors")) authorIdMap.set(k, v);
   console.log(`  -> ${authorIdMap.size} authors\n`);

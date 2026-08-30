@@ -32,6 +32,16 @@ const NONFICTION_HINTS = [
   "aesthetics", "culinary", "motor", "mechanical",
 ];
 
+// Above this many items a single column reads as one long unbroken list —
+// split it into two side-by-side halves instead (currently only "Sooriya
+// Books" is long enough to trigger this).
+const WIDE_COLUMN_THRESHOLD = 8;
+
+function splitInHalf<T>(items: T[]): [T[], T[]] {
+  const mid = Math.ceil(items.length / 2);
+  return [items.slice(0, mid), items.slice(mid)];
+}
+
 function classify(name: string): "fiction" | "nonfiction" | "more" {
   const lower = name.toLowerCase();
   if (FICTION_HINTS.some((k) => lower.includes(k))) return "fiction";
@@ -43,11 +53,20 @@ function groupCategories(categories: NavCategory[]) {
   const fiction: NavCategory[] = [];
   const nonfiction: NavCategory[] = [];
   const more: NavCategory[] = [];
+  // "Sooriya Books" — the publisher's own imprint, and by far the biggest
+  // category (it has more sub-categories than everything else combined) —
+  // gets pulled out into its own dedicated column below rather than being
+  // lumped into the generic "More" bucket with everything else.
+  let sooriyaBooks: NavCategory | null = null;
   for (const cat of categories) {
+    if (cat.slug === "sooriya-books") {
+      sooriyaBooks = cat;
+      continue;
+    }
     const bucket = classify(cat.name);
     (bucket === "fiction" ? fiction : bucket === "nonfiction" ? nonfiction : more).push(cat);
   }
-  return { fiction, nonfiction, more };
+  return { sooriyaBooks, fiction, nonfiction, more };
 }
 
 export function MegaMenu({
@@ -103,13 +122,57 @@ export function MegaMenu({
     closeTimer.current = setTimeout(() => onOpenChange(false), CLOSE_DELAY_MS);
   }
 
-  const { fiction, nonfiction, more } = groupCategories(categories);
+  function CategoryList({ items }: { items: NavCategory[] }) {
+    return (
+      <ul className="space-y-3">
+        {items.map((cat) => (
+          <li key={cat.slug}>
+            <Link
+              href={`/category/${cat.slug}`}
+              tabIndex={open ? 0 : -1}
+              role="menuitem"
+              className="group inline-flex items-center text-sm text-foreground/80 transition-colors hover:text-accent"
+            >
+              <span className="max-w-0 overflow-hidden opacity-0 transition-all duration-200 ease-premium group-hover:mr-1.5 group-hover:max-w-[0.6em] group-hover:opacity-100">
+                →
+              </span>
+              {cat.name}
+            </Link>
+            {cat.children && cat.children.length > 0 && (
+              <ul className="mt-1.5 space-y-1.5 border-l pl-3">
+                {cat.children.map((sub) => (
+                  <li key={sub.slug}>
+                    <Link
+                      href={`/category/${sub.slug}`}
+                      tabIndex={open ? 0 : -1}
+                      role="menuitem"
+                      className="text-xs text-muted-foreground transition-colors hover:text-accent"
+                    >
+                      {sub.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
+  const { sooriyaBooks, fiction, nonfiction, more } = groupCategories(categories);
+
+  // Sooriya Books' own column comes first (priority), ahead of Fiction/
+  // Non-Fiction. "More" is deliberately NOT one of these grid columns — its
+  // item count varies and doesn't reliably divide evenly into the 6-track
+  // grid alongside the other (sometimes-wide) columns, which left it
+  // stranded alone on its own row. It gets its own full-width strip below
+  // instead (see `more` usage further down).
   const columns = [
-    { label: "Fiction", items: fiction },
-    { label: "Non-Fiction", items: nonfiction },
-    { label: "More", items: more },
-  ].filter((c) => c.items.length > 0);
+    sooriyaBooks && { label: sooriyaBooks.name, href: `/category/${sooriyaBooks.slug}`, items: sooriyaBooks.children ?? [] },
+    { label: "Fiction", href: null, items: fiction },
+    { label: "Non-Fiction", href: null, items: nonfiction },
+  ].filter((c): c is { label: string; href: string | null; items: NavCategory[] } => !!c && c.items.length > 0);
 
   return (
     <div ref={containerRef} className="relative" onMouseEnter={openNow} onMouseLeave={closeSoon}>
@@ -128,7 +191,7 @@ export function MegaMenu({
           lifecycle to get stuck mid-transition. */}
       <div
         className={cn(
-          "absolute left-1/2 top-full z-50 mt-3 w-[min(92vw,860px)] -translate-x-1/2 origin-top rounded-lg border bg-card shadow-xl transition-[opacity,transform] duration-200 ease-premium",
+          "absolute left-1/2 top-full z-50 mt-3 w-[min(94vw,980px)] -translate-x-1/2 origin-top overflow-hidden rounded-lg border bg-card shadow-xl transition-[opacity,transform] duration-200 ease-premium",
           open
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-1.5 scale-[0.99] opacity-0",
@@ -137,7 +200,7 @@ export function MegaMenu({
         aria-hidden={!open}
       >
         <div className="h-0.5 w-full rounded-t-lg bg-gradient-to-r from-accent/60 via-accent to-accent/60" aria-hidden />
-        <div className="grid grid-cols-2 gap-x-10 gap-y-8 bg-secondary/20 p-8 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-8 bg-secondary/20 p-8 sm:grid-cols-6">
           <div>
             <p className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-accent">
               <span className="h-px w-4 bg-accent" aria-hidden />
@@ -166,32 +229,62 @@ export function MegaMenu({
             </ul>
           </div>
 
-          {columns.map((column) => (
-            <div key={column.label}>
-              <p className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-accent">
-                <span className="h-px w-4 bg-accent" aria-hidden />
-                {column.label}
-              </p>
-              <ul className="space-y-3">
-                {column.items.map((cat) => (
-                  <li key={cat.slug}>
-                    <Link
-                      href={`/category/${cat.slug}`}
-                      tabIndex={open ? 0 : -1}
-                      role="menuitem"
-                      className="group inline-flex items-center text-sm text-foreground/80 transition-colors hover:text-accent"
-                    >
-                      <span className="max-w-0 overflow-hidden opacity-0 transition-all duration-200 ease-premium group-hover:mr-1.5 group-hover:max-w-[0.6em] group-hover:opacity-100">
-                        →
-                      </span>
-                      {cat.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {columns.map((column) => {
+            const isWide = column.items.length > WIDE_COLUMN_THRESHOLD;
+            const [firstHalf, secondHalf] = isWide ? splitInHalf(column.items) : [column.items, []];
+            return (
+              <div key={column.label} className={isWide ? "sm:col-span-2" : undefined}>
+                {column.href ? (
+                  <Link
+                    href={column.href}
+                    tabIndex={open ? 0 : -1}
+                    role="menuitem"
+                    className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-accent hover:underline"
+                  >
+                    <span className="h-px w-4 bg-accent" aria-hidden />
+                    {column.label}
+                  </Link>
+                ) : (
+                  <p className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-accent">
+                    <span className="h-px w-4 bg-accent" aria-hidden />
+                    {column.label}
+                  </p>
+                )}
+                {isWide ? (
+                  <div className="grid grid-cols-2 gap-x-6">
+                    <CategoryList items={firstHalf} />
+                    <CategoryList items={secondHalf} />
+                  </div>
+                ) : (
+                  <CategoryList items={column.items} />
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {more.length > 0 && (
+          <div className="border-t bg-secondary/20 px-8 py-5">
+            <p className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-accent">
+              <span className="h-px w-4 bg-accent" aria-hidden />
+              More
+            </p>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2">
+              {more.map((cat) => (
+                <li key={cat.slug}>
+                  <Link
+                    href={`/category/${cat.slug}`}
+                    tabIndex={open ? 0 : -1}
+                    role="menuitem"
+                    className="text-sm text-foreground/80 transition-colors hover:text-accent"
+                  >
+                    {cat.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

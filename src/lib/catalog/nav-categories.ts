@@ -3,6 +3,10 @@ import { decodeHtmlEntities } from "@/lib/utils";
 export interface NavCategory {
   name: string;
   slug: string;
+  /** Direct sub-categories, e.g. "Sooriya Books" -> "Translations". Only
+   *  ever one level deep — that's the only hierarchy depth the catalog
+   *  actually has. */
+  children?: NavCategory[];
 }
 
 /**
@@ -11,6 +15,7 @@ export interface NavCategory {
  * Drops the WooCommerce-import "Uncategorized" catch-all and collapses
  * same-named categories (e.g. two different "Novels" rows) down to the
  * first one encountered, so every nav surface agrees on one clean list.
+ * `children` (if present on the input rows) passes through untouched.
  */
 export function selectNavCategories(categories: NavCategory[], limit: number): NavCategory[] {
   const seen = new Set<string>();
