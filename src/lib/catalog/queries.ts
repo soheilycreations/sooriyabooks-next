@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { selectNavCategories } from "@/lib/catalog/nav-categories";
+import { selectNavCategories, type NavCategory } from "@/lib/catalog/nav-categories";
 import { decodeHtmlEntities, sanitizeSearchTerm } from "@/lib/utils";
 
 export interface BookCardData {
@@ -325,6 +325,28 @@ export async function getAllCategories() {
     .select("id, name, slug, parent_id, sort_order")
     .order("sort_order", { ascending: true });
   return data ?? [];
+}
+
+/**
+ * The nav's Shop menu is scoped to the publisher's own imprint — every
+ * sub-category of "Sooriya Books" — rather than trying to represent the
+ * whole multi-publisher catalog (that was ~40 categories crammed into one
+ * dropdown). Categories outside this imprint are still reachable via
+ * "Browse All Categories" (/categories), not hidden.
+ */
+export async function getSooriyaBooksCategories(): Promise<NavCategory[]> {
+  const supabase = await createClient();
+  const { data: parent } = await supabase.from("categories").select("id").eq("slug", "sooriya-books").maybeSingle();
+  if (!parent) return [];
+
+  const { data } = await supabase
+    .from("categories")
+    .select("name, slug")
+    .eq("parent_id", parent.id)
+    .order("sort_order")
+    .limit(60);
+
+  return selectNavCategories(data ?? [], 40);
 }
 
 export interface StoreStats {

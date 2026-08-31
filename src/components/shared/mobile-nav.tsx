@@ -95,7 +95,7 @@ export function MobileNav({ categories }: { categories: NavCategory[] }) {
                       </Link>
                     </li>
                     <li className="mt-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Categories
+                      Sooriya Books
                     </li>
                     {categories.map((cat) => (
                       <li key={cat.slug}>
@@ -106,23 +106,17 @@ export function MobileNav({ categories }: { categories: NavCategory[] }) {
                         >
                           {cat.name}
                         </Link>
-                        {cat.children && cat.children.length > 0 && (
-                          <ul className="ml-3 border-l pl-3">
-                            {cat.children.map((sub) => (
-                              <li key={sub.slug}>
-                                <Link
-                                  href={`/category/${sub.slug}`}
-                                  onClick={() => setOpen(false)}
-                                  className="block py-2 text-xs text-muted-foreground/80 hover:text-accent"
-                                >
-                                  {sub.name}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
                       </li>
                     ))}
+                    <li className="mt-1 pt-1">
+                      <Link
+                        href="/categories"
+                        onClick={() => setOpen(false)}
+                        className="block py-2.5 text-sm font-medium text-accent hover:underline"
+                      >
+                        Browse All Categories
+                      </Link>
+                    </li>
                   </ul>
                 </AccordionPrimitive.Content>
               </AccordionPrimitive.Item>
