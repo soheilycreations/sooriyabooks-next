@@ -85,7 +85,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
             open={overlay === "menu"}
             onOpenChange={(open) => setOverlay(open ? "menu" : null)}
           />
-          <Link href="/category/sooriya-awarded-books" className={cn(navLinkClass, "px-3 py-2")}>
+          <Link href="/awards" className={cn(navLinkClass, "px-3 py-2")}>
             Award
           </Link>
           <Link href="/about" className={cn(navLinkClass, "px-3 py-2")}>
