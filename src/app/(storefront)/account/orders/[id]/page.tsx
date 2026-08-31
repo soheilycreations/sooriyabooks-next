@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
+import { BankTransferNotice } from "@/components/storefront/bank-transfer-notice";
 import { resolveCoverUrl } from "@/lib/catalog/queries";
 
 const STATUS_STEPS = ["confirmed", "packed", "shipped", "delivered"] as const;
@@ -161,6 +162,10 @@ export default async function OrderDetailPage({
           </div>
         )}
       </div>
+
+      {order.payment_method === "bank_transfer" && order.payment_status === "pending" && (
+        <BankTransferNotice orderNumber={order.order_number} />
+      )}
 
       {placed === "1" && (
         <div className="mt-10 flex flex-wrap gap-3 border-t pt-8">

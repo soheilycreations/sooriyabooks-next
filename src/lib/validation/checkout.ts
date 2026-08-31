@@ -19,7 +19,7 @@ export const checkoutSchema = z.object({
       postalCode: z.string().optional(),
     })
     .optional(),
-  paymentMethod: z.enum(["cod", "bank_ipg"]),
+  paymentMethod: z.enum(["cod", "bank_ipg", "bank_transfer"]),
   couponCode: z.string().optional(),
   customerNote: z.string().optional(),
 }).refine((data) => data.addressId || data.newAddress, {

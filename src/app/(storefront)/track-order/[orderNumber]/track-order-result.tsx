@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { FormAlert } from "@/components/shared/form-alert";
 import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
+import { BankTransferNotice } from "@/components/storefront/bank-transfer-notice";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { trackGuestOrder, type GuestOrderDetails } from "@/lib/orders/guest-actions";
 
@@ -133,6 +134,10 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
             </div>
           </div>
         </div>
+
+        {order.paymentMethod === "bank_transfer" && order.paymentStatus === "pending" && (
+          <BankTransferNotice orderNumber={order.orderNumber} />
+        )}
 
         <div className="mt-10 border-t pt-8">
           <Button variant="outline" asChild>

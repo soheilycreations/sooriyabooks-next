@@ -1699,7 +1699,7 @@ export type Database = {
         | "cancelled"
         | "refunded"
         | "failed"
-      payment_method: "cod" | "bank_ipg"
+      payment_method: "cod" | "bank_ipg" | "bank_transfer"
       payment_status:
         | "pending"
         | "authorized"
@@ -1869,7 +1869,7 @@ export const Constants = {
         "refunded",
         "failed",
       ],
-      payment_method: ["cod", "bank_ipg"],
+      payment_method: ["cod", "bank_ipg", "bank_transfer"],
       payment_status: [
         "pending",
         "authorized",
