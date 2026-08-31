@@ -126,6 +126,7 @@ export default async function CategoryPage({
             <div className="mt-12 text-center">
               <Link
                 href={`?${params2.toString()}`}
+                scroll={false}
                 className="inline-flex h-11 items-center justify-center rounded-md border border-input px-6 text-sm font-medium transition-colors hover:bg-secondary"
               >
                 Load more books
