@@ -293,8 +293,9 @@ export async function createOrder(
   }
 
   // 8. Cash on Delivery is confirmed immediately (payment collected on
-  // delivery); Bank IPG stays pending until the gateway webhook confirms
-  // payment (src/app/api/webhooks/bank-ipg — Phase 5). confirm_cod_order()
+  // delivery); Bank IPG stays pending until the customer returns from the
+  // hosted checkout and the return handler verifies payment server-to-
+  // server (src/app/api/payments/bank-ipg/return). confirm_cod_order()
   // is a SECURITY DEFINER function that validates order ownership itself
   // before committing stock/updating status — see 0002_functions.sql —
   // because committing stock and updating `orders`/`order_status_history`

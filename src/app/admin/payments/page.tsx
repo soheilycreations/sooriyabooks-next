@@ -12,7 +12,7 @@ export default async function AdminPaymentsPage() {
     <div>
       <AdminPageHeader
         title="Payment Settings"
-        description="Payment methods available at checkout. Bank IPG credentials are configured via server environment variables (BANK_IPG_MERCHANT_ID / BANK_IPG_SECRET), never stored in the database — see docs/architecture.md §6."
+        description="Payment methods available at checkout. Bank IPG (Sampath Bank's Paycorp gateway) credentials are configured via server environment variables (BANK_IPG_CLIENT_ID / BANK_IPG_AUTH_TOKEN / BANK_IPG_HMAC_SECRET), never stored in the database — see docs/architecture.md §6."
       />
       <div className="space-y-3">
         {(providers ?? []).map((p) => (

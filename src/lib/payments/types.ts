@@ -25,8 +25,15 @@ export interface PaymentProvider {
   id: string; // matches payment_providers.id in the database
   /** Starts a payment: called right after order creation for non-COD methods. */
   createIntent(params: { orderId: string; orderNumber: string; amount: number; customerEmail?: string }): Promise<PaymentIntent>;
-  /** Verifies + parses a webhook/callback payload from the provider. */
-  handleWebhook(payload: unknown, signatureHeader: string | null): Promise<PaymentResult>;
+  /**
+   * Confirms a payment after the customer returns from the provider's
+   * hosted checkout, by calling the provider's own verification API
+   * server-to-server — never trust the return redirect itself, it's
+   * usually unsigned and just a trigger. Optional because not every
+   * provider needs it (Cash on Delivery confirms immediately, no gateway
+   * round-trip).
+   */
+  verifyReturn?(providerReference: string): Promise<PaymentResult>;
   /** Optional: issue a refund (not all providers/phases need this immediately). */
   refund?(params: { providerReference: string; amount: number }): Promise<PaymentResult>;
 }
