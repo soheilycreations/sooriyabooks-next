@@ -96,7 +96,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
             {featured.map((book, i) => (
               <Reveal key={book.id} index={i}>
-                <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
+                <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} showQuickAdd />
               </Reveal>
             ))}
           </div>

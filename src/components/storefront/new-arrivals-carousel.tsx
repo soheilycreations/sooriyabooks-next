@@ -61,7 +61,7 @@ export function NewArrivalsCarousel({
       >
         {books.map((book, i) => (
           <Reveal key={book.id} index={i} className="w-[46vw] shrink-0 snap-start sm:w-[230px]">
-            <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
+            <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} showQuickAdd />
           </Reveal>
         ))}
       </div>
