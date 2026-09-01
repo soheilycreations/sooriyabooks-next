@@ -67,7 +67,7 @@ export function HeaderClient({ categories }: { categories: NavCategory[] }) {
             )}
           >
             <Logo variant="full" height={38} priority className="hidden sm:block" />
-            <Logo variant="mark" height={34} className="sm:hidden" />
+            <Logo variant="full" height={28} priority className="sm:hidden" />
           </div>
         </div>
 
