@@ -38,8 +38,19 @@ export function SearchFilters({ categories }: { categories: FilterCategory[] }) 
 
   function toggleCategory(slug: string) {
     pushParams((params) => {
-      if (activeCategory === slug) params.delete("category");
-      else params.set("category", slug);
+      if (activeCategory === slug) {
+        params.delete("category");
+        return;
+      }
+      params.set("category", slug);
+      // "New Arrivals" / "Featured" are their own special views of the
+      // whole catalog, not filters meant to stack with a category — left
+      // in place, picking a category silently AND-ed with whichever view
+      // the customer arrived from (e.g. from a "New Arrivals" link) and
+      // could show 0 results for a category that's actually full of
+      // books, which reads as broken rather than "no matches."
+      params.delete("new");
+      params.delete("featured");
     });
   }
 
@@ -66,7 +77,10 @@ export function SearchFilters({ categories }: { categories: FilterCategory[] }) 
   }
 
   return (
-    <aside className="w-full shrink-0 md:w-56">
+    // Sticky, offset below the sticky site header — the sidebar now
+    // follows the scroll alongside the (usually much longer) results grid
+    // instead of sitting at a fixed short height with empty space below it.
+    <aside className="w-full shrink-0 md:sticky md:top-24 md:w-56 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto">
       <div className="flex items-center justify-between">
         <p className="font-heading text-lg">Filters</p>
         {hasActiveFilters && (
@@ -83,7 +97,11 @@ export function SearchFilters({ categories }: { categories: FilterCategory[] }) 
 
       <div className="mt-5 border-t pt-5">
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Category</p>
-        <ul className="max-h-72 space-y-1 overflow-y-auto pr-1">
+        {/* No scroll/max-height of its own — the outer <aside> is already
+            the one scrollable container (see below); nesting a second
+            scrollable box here just produced two visible scrollbars
+            stacked next to each other. */}
+        <ul className="space-y-1">
           {categories.map((cat) => (
             <li key={cat.slug}>
               <button

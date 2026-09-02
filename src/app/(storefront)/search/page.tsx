@@ -83,7 +83,14 @@ export default async function SearchPage({
       {/* The filter sidebar always renders, even with zero results — it's
           the only way to adjust or clear a filter that over-narrowed the
           results, so it can't disappear exactly when it's most needed. */}
-      <div className="flex flex-col gap-10 md:flex-row">
+      {/* items-start, not the flex default (stretch) — stretch was forcing
+          the short filter sidebar's own box to match the much taller
+          results grid, leaving a big empty block below its real content
+          (visible as a bare white gap in dark mode, since nothing painted
+          that stretched space). items-start keeps the sidebar's box sized
+          to its own content, and sticky (in SearchFilters) lets it follow
+          the scroll alongside the results instead of just sitting short. */}
+      <div className="flex flex-col items-start gap-10 md:flex-row">
         <SearchFilters categories={filterCategories} />
         <div className="min-w-0 flex-1">
           {books.length > 0 ? (

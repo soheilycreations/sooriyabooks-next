@@ -12,6 +12,20 @@ import type { ActionResult } from "@/lib/auth/actions";
 // Books
 // ---------------------------------------------------------------------
 
+// The public catalog pages (home, search, every /category/[slug]) run on
+// ISR (`revalidate = 3600`) — without this, a book's category/new-arrival/
+// featured/active changes only reach the live site once that hour-long
+// cache naturally expires, not the moment staff saves. revalidateTag
+// alone doesn't cover this: it only invalidates fetch() calls explicitly
+// tagged "catalog", and the Supabase client's internal fetches never are.
+// revalidatePath(..., "page") on the dynamic category route invalidates
+// every category page in one call, not just one slug.
+function revalidateStorefront() {
+  revalidatePath("/");
+  revalidatePath("/search");
+  revalidatePath("/category/[slug]", "page");
+}
+
 export async function createBook(input: BookInput): Promise<ActionResult<{ id: string }>> {
   await requireStaff();
   const parsed = bookSchema.safeParse(input);
@@ -68,6 +82,7 @@ export async function createBook(input: BookInput): Promise<ActionResult<{ id: s
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
+  revalidateStorefront();
   return { ok: true, data: { id: book.id } };
 }
 
@@ -128,6 +143,7 @@ export async function updateBook(id: string, input: BookInput): Promise<ActionRe
   revalidateTag("catalog");
   revalidatePath("/admin/products");
   revalidatePath(`/book/${d.slug}`);
+  revalidateStorefront();
   return { ok: true, data: undefined };
 }
 
@@ -143,6 +159,7 @@ export async function deleteBook(id: string): Promise<ActionResult> {
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
+  revalidateStorefront();
   return { ok: true, data: undefined };
 }
 
@@ -157,6 +174,7 @@ export async function setBookImages(bookId: string, mediaIds: string[]): Promise
   }
   revalidateTag("catalog");
   revalidatePath(`/admin/products/${bookId}`);
+  revalidateStorefront();
   return { ok: true, data: undefined };
 }
 
@@ -190,6 +208,7 @@ export async function createCategory(input: CategoryInput): Promise<ActionResult
 
   revalidateTag("catalog");
   revalidatePath("/admin/categories");
+  revalidateStorefront();
   return { ok: true, data: { id: category.id } };
 }
 
@@ -217,6 +236,7 @@ export async function updateCategory(id: string, input: CategoryInput): Promise<
   if (error) return { ok: false, error: error.message };
   revalidateTag("catalog");
   revalidatePath("/admin/categories");
+  revalidateStorefront();
   return { ok: true, data: undefined };
 }
 
@@ -227,6 +247,7 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   revalidateTag("catalog");
   revalidatePath("/admin/categories");
+  revalidateStorefront();
   return { ok: true, data: undefined };
 }
 

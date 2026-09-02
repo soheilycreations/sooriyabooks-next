@@ -288,7 +288,13 @@ export function BookForm({
             {([
               ["isActive", "Published"],
               ["isFeatured", "Featured"],
-              ["isNewArrival", "New Arrival"],
+              // Deliberately not "New Arrivals" — there's also a real
+              // category with that exact name in the list above, and the
+              // two are unrelated (this flag drives the homepage "New
+              // Arrivals" section and /search?new=1; the category is just
+              // an ordinary category). The differing label is the whole
+              // fix — staff kept ticking the category by mistake.
+              ["isNewArrival", "New Arrival (site highlight)"],
               ["isBestSeller", "Best Seller"],
             ] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 text-sm">
