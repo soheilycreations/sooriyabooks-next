@@ -3,11 +3,12 @@
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, X, ShoppingBag } from "lucide-react";
+import { Minus, Plus, X, ShoppingBag, BadgePercent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart/cart-context";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getShippingOptionsAction, quoteShippingAction } from "@/lib/shipping/actions";
+import { loadLastDelivery, saveLastDelivery } from "@/lib/shipping/city-storage";
 import type { DistrictWithCities } from "@/lib/shipping/queries";
 import { CartWishlistToggle } from "./cart-wishlist-toggle";
 
@@ -15,7 +16,7 @@ const selectClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function CartView() {
-  const { items, updateQuantity, removeItem, subtotal, totalWeightGrams, itemCount } = useCart();
+  const { items, updateQuantity, removeItem, subtotal, totalDiscount, totalWeightGrams, itemCount } = useCart();
   const [districts, setDistricts] = useState<DistrictWithCities[]>([]);
   const [districtId, setDistrictId] = useState("");
   const [cityId, setCityId] = useState("");
@@ -26,6 +27,20 @@ export function CartView() {
   useEffect(() => {
     getShippingOptionsAction().then(setDistricts);
   }, []);
+
+  // Prefill with whatever city they picked last time, instead of making
+  // them re-select it on every visit.
+  useEffect(() => {
+    if (districts.length === 0 || districtId) return;
+    const saved = loadLastDelivery();
+    if (!saved) return;
+    const district = districts.find((d) => d.id === saved.districtId);
+    if (!district) return;
+    const city = district.cities.find((c) => c.id === saved.cityId);
+    if (!city) return;
+    setDistrictId(saved.districtId);
+    setCityId(saved.cityId);
+  }, [districts, districtId]);
 
   const selectedDistrict = districts.find((d) => d.id === districtId);
 
@@ -164,7 +179,10 @@ export function CartView() {
                 id="cart-city"
                 className={cn(selectClass, "border-accent")}
                 value={cityId}
-                onChange={(e) => setCityId(e.target.value)}
+                onChange={(e) => {
+                  setCityId(e.target.value);
+                  if (e.target.value) saveLastDelivery(districtId, e.target.value);
+                }}
               >
                 <option value="">Select city</option>
                 {selectedDistrict.cities.map((c) => (
@@ -182,8 +200,14 @@ export function CartView() {
             <span className="text-muted-foreground">Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
+          {totalDiscount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Discount</span>
+              <span className="text-accent">-{formatCurrency(totalDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Shipping ({(totalWeightGrams / 1000).toFixed(2)}kg)</span>
+            <span className="text-muted-foreground">Courier Charge ({(totalWeightGrams / 1000).toFixed(2)}kg)</span>
             <span>
               {isPending ? "Calculating..." : shippingRate != null ? formatCurrency(shippingRate) : "—"}
             </span>
@@ -196,6 +220,13 @@ export function CartView() {
             </span>
           </div>
         </div>
+
+        {totalDiscount > 0 && (
+          <div className="mt-3 flex items-center gap-2 rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-sm font-medium text-accent">
+            <BadgePercent className="h-4 w-4 shrink-0" aria-hidden />
+            You&apos;re saving {formatCurrency(totalDiscount)} on this order!
+          </div>
+        )}
 
         <Button
           className="mt-6 w-full"

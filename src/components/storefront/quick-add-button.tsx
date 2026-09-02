@@ -37,6 +37,7 @@ export function QuickAddButton({ book, outOfStock }: { book: BookCardData; outOf
           slug: book.slug,
           title: book.title,
           unitPrice: book.discountPrice ?? book.sellingPrice,
+          originalPrice: book.sellingPrice,
           weightGrams: book.weightGrams,
           coverUrl: book.coverUrl,
         });

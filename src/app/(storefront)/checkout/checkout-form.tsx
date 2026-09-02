@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin, Gift, Banknote, CreditCard, Landmark, BadgePercent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { createOrder } from "@/lib/orders/actions";
 import { initiateBankPayment } from "@/lib/payments/actions";
 import { quoteShippingAction, getShippingOptionsAction } from "@/lib/shipping/actions";
+import { loadLastDelivery, saveLastDelivery } from "@/lib/shipping/city-storage";
+import { loadLastAddress, saveLastAddress } from "@/lib/checkout/address-storage";
 import type { DistrictWithCities } from "@/lib/shipping/queries";
 
 const selectClass =
@@ -22,7 +25,7 @@ const selectClass =
 export function CheckoutForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { items, subtotal, totalWeightGrams, clear } = useCart();
+  const { items, subtotal, totalDiscount, totalWeightGrams, clear } = useCart();
   const cityId = searchParams.get("cityId") ?? "";
 
   const [districts, setDistricts] = useState<DistrictWithCities[]>([]);
@@ -32,6 +35,7 @@ export function CheckoutForm() {
   const [address, setAddress] = useState({
     recipientName: "",
     phone: "",
+    email: "",
     line1: "",
     line2: "",
     postalCode: "",
@@ -51,7 +55,6 @@ export function CheckoutForm() {
     line1: "",
     line2: "",
     contact: "",
-    email: "",
     specialInstructions: "",
   });
   const [acceptedDeliveryPolicy, setAcceptedDeliveryPolicy] = useState(false);
@@ -59,9 +62,42 @@ export function CheckoutForm() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Fallback city picker for landing on /checkout directly with no
+  // ?cityId= (e.g. a bookmarked/shared link) — previously a dead end
+  // ("go back to your cart"); now the same district/city pick just
+  // happens right here instead.
+  const [pickerDistrictId, setPickerDistrictId] = useState("");
+  const [pickerCityId, setPickerCityId] = useState("");
+  const [autoRedirectChecked, setAutoRedirectChecked] = useState(false);
+
   useEffect(() => {
     getShippingOptionsAction().then(setDistricts);
   }, []);
+
+  // Prefill with whatever the shopper last successfully checked out with,
+  // so returning customers don't retype their name/phone/email/address
+  // every single time.
+  useEffect(() => {
+    const saved = loadLastAddress();
+    if (saved) setAddress(saved);
+  }, []);
+
+  // Landed on /checkout with no ?cityId= — before asking again, check
+  // whether we already know where they last delivered to and skip straight
+  // there instead of making them re-pick it every time.
+  useEffect(() => {
+    if (cityId || districts.length === 0 || autoRedirectChecked) return;
+    const saved = loadLastDelivery();
+    if (saved) {
+      const district = districts.find((d) => d.id === saved.districtId);
+      const city = district?.cities.find((c) => c.id === saved.cityId);
+      if (city) {
+        router.replace(`/checkout?cityId=${saved.cityId}`);
+        return;
+      }
+    }
+    setAutoRedirectChecked(true);
+  }, [cityId, districts, autoRedirectChecked, router]);
 
   useEffect(() => {
     if (!cityId) return;
@@ -93,12 +129,87 @@ export function CheckoutForm() {
   }, [shipToDifferentAddress, giftCityId, totalWeightGrams]);
 
   if (!cityId) {
+    // Still checking localStorage / redirecting to a remembered city —
+    // render nothing rather than flashing the picker first.
+    if (!autoRedirectChecked) return null;
+
+    const pickerDistrict = districts.find((d) => d.id === pickerDistrictId);
     return (
-      <div className="rounded-lg border bg-card p-8 text-center">
-        <p className="text-muted-foreground">No delivery city selected.</p>
-        <Button variant="outline" className="mt-4" asChild>
-          <Link href="/cart">Go back to your cart</Link>
-        </Button>
+      <div className="relative mx-auto max-w-sm overflow-hidden rounded-lg border bg-card p-8">
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full text-accent/10"
+          viewBox="0 0 400 400"
+          fill="none"
+          aria-hidden
+        >
+          <path
+            d="M20 350 C 90 270, 130 300, 190 230 S 290 130, 300 90 S 340 40, 385 20"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeDasharray="8 10"
+            strokeLinecap="round"
+          />
+          <circle cx="20" cy="350" r="7" fill="currentColor" />
+          <circle cx="190" cy="230" r="7" fill="currentColor" />
+          <circle cx="385" cy="20" r="7" fill="currentColor" />
+        </svg>
+        <MapPin className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 text-accent/[0.07]" aria-hidden />
+
+        <div className="relative">
+          <p className="text-center text-muted-foreground">Select where you&apos;re delivering to.</p>
+          <div className="mt-5 space-y-4">
+            <div>
+              <Label htmlFor="pickerDistrict">District</Label>
+              <select
+                id="pickerDistrict"
+                className={selectClass}
+                value={pickerDistrictId}
+                onChange={(e) => {
+                  setPickerDistrictId(e.target.value);
+                  setPickerCityId("");
+                }}
+              >
+                <option value="">Select district</option>
+                {districts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="pickerCity">City</Label>
+              <select
+                id="pickerCity"
+                disabled={!pickerDistrict}
+                className={selectClass}
+                value={pickerCityId}
+                onChange={(e) => setPickerCityId(e.target.value)}
+              >
+                <option value="">Select city</option>
+                {pickerDistrict?.cities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              variant="accent"
+              className="w-full"
+              disabled={!pickerCityId}
+              onClick={() => {
+                saveLastDelivery(pickerDistrictId, pickerCityId);
+                router.push(`/checkout?cityId=${pickerCityId}`);
+              }}
+            >
+              Continue
+            </Button>
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/cart">Go back to your cart</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -107,17 +218,22 @@ export function CheckoutForm() {
   const effectiveShippingRate = shipToDifferentAddress ? giftShippingRate : shippingRate;
   const giftFieldsReady =
     !shipToDifferentAddress ||
-    Boolean(giftCityId && giftShippingRate != null && gift.firstName && gift.surname && gift.line1 && gift.contact && gift.email);
-  const canSubmit = acceptedDeliveryPolicy && giftFieldsReady;
+    Boolean(giftCityId && giftShippingRate != null && gift.firstName && gift.surname && gift.line1 && gift.contact);
+  const canSubmit = acceptedDeliveryPolicy && Boolean(address.email) && giftFieldsReady;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
       const usingGift = shipToDifferentAddress;
-      const noteParts = usingGift
-        ? [`Gift recipient email: ${gift.email}`, gift.specialInstructions ? `Note: ${gift.specialInstructions}` : null]
-        : [];
+      // No `email` column on addresses/orders — the buyer's contact email
+      // (always collected, regardless of gift mode) rides along as a note
+      // instead, alongside the gift recipient's special instructions when
+      // that applies.
+      const noteParts = [
+        `Contact email: ${address.email}`,
+        usingGift && gift.specialInstructions ? `Note: ${gift.specialInstructions}` : null,
+      ];
 
       const result = await createOrder({
         items: items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
@@ -130,7 +246,7 @@ export function CheckoutForm() {
               line2: gift.line2,
               postalCode: "",
             }
-          : address,
+          : { recipientName: address.recipientName, phone: address.phone, line1: address.line1, line2: address.line2, postalCode: address.postalCode },
         paymentMethod,
         customerNote: noteParts.filter(Boolean).join("\n") || undefined,
       });
@@ -138,6 +254,10 @@ export function CheckoutForm() {
         setError(result.error);
         return;
       }
+      // Only when NOT sending as a gift — in gift mode the main address
+      // fields (name/phone/line1/etc.) are left blank on purpose, so saving
+      // here would overwrite a good remembered address with empty ones.
+      if (!usingGift) saveLastAddress(address);
       clear();
 
       const { orderId, orderNumber, isGuest } = result.data;
@@ -162,7 +282,7 @@ export function CheckoutForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-10 lg:grid-cols-3">
+    <form onSubmit={handleSubmit} className="grid gap-10 lg:grid-cols-3 lg:items-start">
       <div className="space-y-8 lg:col-span-2">
         <Card className="shadow-none">
           <CardHeader>
@@ -197,6 +317,19 @@ export function CheckoutForm() {
                 disabled={shipToDifferentAddress}
                 value={address.phone}
                 onChange={(e) => setAddress((a) => ({ ...a, phone: e.target.value }))}
+              />
+            </div>
+            <div>
+              {/* Not disabled by "ship to a different address" — this is the
+                  buyer's own contact, independent of wherever the package
+                  ends up going. */}
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={address.email}
+                onChange={(e) => setAddress((a) => ({ ...a, email: e.target.value }))}
               />
             </div>
             <div>
@@ -235,23 +368,10 @@ export function CheckoutForm() {
                 checked={shipToDifferentAddress}
                 onChange={(e) => setShipToDifferentAddress(e.target.checked)}
               />
-              <span>
+              <span className="inline-flex items-center gap-1.5">
+                <Gift className="h-4 w-4 text-accent" aria-hidden />
                 Shipping to a different address <span className="text-muted-foreground">(e.g. sending as a gift)</span>
               </span>
-            </label>
-
-            <div className="sm:col-span-2 rounded-md border bg-secondary/40 p-4 text-sm text-muted-foreground">
-              All orders will take 4–5 working days to deliver. We don&apos;t do deliveries on weekends.
-            </div>
-            <label className="sm:col-span-2 flex cursor-pointer items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                required
-                className="mt-0.5 accent-accent"
-                checked={acceptedDeliveryPolicy}
-                onChange={(e) => setAcceptedDeliveryPolicy(e.target.checked)}
-              />
-              <span>Read and Accept</span>
             </label>
           </CardContent>
         </Card>
@@ -337,16 +457,6 @@ export function CheckoutForm() {
                   onChange={(e) => setGift((g) => ({ ...g, contact: e.target.value }))}
                 />
               </div>
-              <div>
-                <Label htmlFor="giftEmail">Email</Label>
-                <Input
-                  id="giftEmail"
-                  type="email"
-                  required
-                  value={gift.email}
-                  onChange={(e) => setGift((g) => ({ ...g, email: e.target.value }))}
-                />
-              </div>
               <div className="sm:col-span-2">
                 <Label htmlFor="giftNote">Special instructions (optional)</Label>
                 <textarea
@@ -380,6 +490,7 @@ export function CheckoutForm() {
                 checked={paymentMethod === "cod"}
                 onChange={() => setPaymentMethod("cod")}
               />
+              <Banknote className="h-6 w-6 shrink-0 text-accent" aria-hidden />
               <div>
                 <p className="font-medium">Cash on Delivery</p>
                 <p className="text-sm text-muted-foreground">Pay when your order arrives</p>
@@ -398,8 +509,9 @@ export function CheckoutForm() {
                 checked={paymentMethod === "bank_ipg"}
                 onChange={() => setPaymentMethod("bank_ipg")}
               />
+              <CreditCard className="h-6 w-6 shrink-0 text-accent" aria-hidden />
               <div>
-                <p className="font-medium">Bank Payment Gateway</p>
+                <p className="font-medium">Credit/Debit Card Payment</p>
                 <p className="text-sm text-muted-foreground">
                   Pay securely online (redirect to bank gateway after order confirmation)
                 </p>
@@ -418,6 +530,7 @@ export function CheckoutForm() {
                 checked={paymentMethod === "bank_transfer"}
                 onChange={() => setPaymentMethod("bank_transfer")}
               />
+              <Landmark className="h-6 w-6 shrink-0 text-accent" aria-hidden />
               <div>
                 <p className="font-medium">Direct Bank Transfer</p>
                 <p className="text-sm text-muted-foreground">
@@ -452,16 +565,40 @@ export function CheckoutForm() {
         </Card>
       </div>
 
-      <div className="h-fit rounded-lg border bg-card p-6 shadow-sm">
+      <div className="h-fit rounded-lg border bg-card p-6 shadow-sm lg:sticky lg:top-24">
         <h2 className="font-heading text-xl">Order Summary</h2>
         <div className="mt-3 h-px w-10 bg-accent" aria-hidden />
-        <div className="mt-5 space-y-2 text-sm">
+
+        <ul className="mt-5 max-h-72 space-y-3 overflow-y-auto pr-1">
+          {items.map((item) => (
+            <li key={item.bookId} className="flex gap-3">
+              <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-muted">
+                {item.coverUrl && (
+                  <Image src={item.coverUrl} alt={item.title} fill sizes="48px" className="object-cover" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="line-clamp-2 leading-snug">{item.title}</p>
+                <p className="mt-0.5 text-muted-foreground">Qty {item.quantity}</p>
+              </div>
+              <span className="shrink-0 text-sm">{formatCurrency(item.unitPrice * item.quantity)}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-5 space-y-2 border-t pt-4 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
+          {totalDiscount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Discount</span>
+              <span className="text-accent">-{formatCurrency(totalDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Shipping</span>
+            <span className="text-muted-foreground">Courier Charge</span>
             <span>{effectiveShippingRate != null ? formatCurrency(effectiveShippingRate) : "—"}</span>
           </div>
           <div className="flex items-baseline justify-between border-t pt-3">
@@ -471,6 +608,28 @@ export function CheckoutForm() {
             </span>
           </div>
         </div>
+
+        {totalDiscount > 0 && (
+          <div className="mt-3 flex items-center gap-2 rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-sm font-medium text-accent">
+            <BadgePercent className="h-4 w-4 shrink-0" aria-hidden />
+            You&apos;re saving {formatCurrency(totalDiscount)} on this order!
+          </div>
+        )}
+
+        <div className="mt-5 rounded-md border bg-secondary/40 p-4 text-sm text-muted-foreground">
+          All orders will take 4–5 working days to deliver. We don&apos;t do deliveries on weekends.
+        </div>
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            required
+            className="mt-0.5 accent-accent"
+            checked={acceptedDeliveryPolicy}
+            onChange={(e) => setAcceptedDeliveryPolicy(e.target.checked)}
+          />
+          <span>Read and Accept</span>
+        </label>
+
         {error && (
           <div className="mt-4">
             <FormAlert>{error}</FormAlert>

@@ -98,7 +98,7 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
                 <span>{formatCurrency(order.subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
+                <span className="text-muted-foreground">Courier Charge</span>
                 <span>{formatCurrency(order.shippingTotal)}</span>
               </div>
               {order.discountTotal > 0 && (

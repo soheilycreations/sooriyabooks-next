@@ -116,3 +116,19 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Theme toggle: replaces the browser's default cross-fade view transition
+   with a plain cut, so the circular clip-path animated from JS (see
+   theme-toggle.tsx) is the only motion — without this, the default fade
+   fights the circle reveal. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}

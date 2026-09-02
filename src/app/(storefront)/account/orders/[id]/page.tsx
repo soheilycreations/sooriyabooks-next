@@ -124,7 +124,7 @@ export default async function OrderDetailPage({
               <span>{formatCurrency(Number(order.subtotal))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Shipping</span>
+              <span className="text-muted-foreground">Courier Charge</span>
               <span>{formatCurrency(Number(order.shipping_total))}</span>
             </div>
             {Number(order.discount_total) > 0 && (

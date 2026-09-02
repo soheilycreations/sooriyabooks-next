@@ -211,6 +211,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
                   slug: b.slug,
                   title: b.title,
                   unitPrice: isOnSale ? Number(b.discount_price) : Number(b.selling_price),
+                  originalPrice: Number(b.selling_price),
                   weightGrams: b.weight_grams,
                   coverUrl: galleryImages[0]?.url ?? null,
                 }}
