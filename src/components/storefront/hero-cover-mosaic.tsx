@@ -49,19 +49,70 @@ export function HeroCoverMosaic({ covers }: { covers: BookCoverTile[] }) {
 
   return (
     <div className="absolute inset-0 -z-10 grid grid-cols-4 gap-px overflow-hidden bg-foreground sm:grid-cols-6 md:grid-cols-8">
+      {/* Keyed by grid position (not book id) — each tile is a persistent
+          FlipTile that flips itself in place when its target book changes,
+          instead of remounting. */}
       {visible.map((book, i) => (
-        // Keying on id+slot forces a remount when a tile rotates in, which
-        // replays the (slow, deliberate) crossfade for just that one tile.
-        <div key={`${i}-${book.id}`} className="relative aspect-[3/4] motion-safe:animate-cover-fade">
+        <FlipTile key={i} book={book} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A single mosaic cell that page-flips (3D rotateY) from its current cover
+ * to a new one whenever `book` changes, like a book cover turning over —
+ * rather than a plain crossfade. Holds two faces glued back-to-back inside
+ * a rotating card; the container's rotation angle only ever increases (by
+ * 180° per flip), so every flip animates forward with no snap-back, and
+ * whichever face is momentarily hidden gets loaded with the next cover
+ * before the flip reveals it.
+ */
+function FlipTile({ book }: { book: BookCoverTile }) {
+  const [angle, setAngle] = useState(0);
+  const [faces, setFaces] = useState<[BookCoverTile, BookCoverTile]>([book, book]);
+  const visibleIndex = (angle / 180) % 2;
+
+  useEffect(() => {
+    const currentBook = faces[visibleIndex]!;
+    if (book.id === currentBook.id) return;
+    const hiddenIndex = visibleIndex === 0 ? 1 : 0;
+    setFaces((prev) => {
+      const updated: [BookCoverTile, BookCoverTile] = [...prev];
+      updated[hiddenIndex] = book;
+      return updated;
+    });
+    setAngle((a) => a + 180);
+    // Only the incoming book should trigger a flip — re-checking against
+    // `faces`/`visibleIndex` here would fire on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book]);
+
+  return (
+    <div className="relative aspect-[3/4] [perspective:1000px]">
+      <div
+        className="relative h-full w-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d]"
+        style={{ transform: `rotateY(${angle}deg)` }}
+      >
+        <div className="absolute inset-0 [backface-visibility:hidden]">
           <Image
-            src={book.coverUrl}
-            alt={book.title}
+            src={faces[0].coverUrl}
+            alt={faces[0].title}
             fill
             sizes="15vw"
             className="object-cover saturate-[1.15]"
           />
         </div>
-      ))}
+        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <Image
+            src={faces[1].coverUrl}
+            alt={faces[1].title}
+            fill
+            sizes="15vw"
+            className="object-cover saturate-[1.15]"
+          />
+        </div>
+      </div>
     </div>
   );
 }
