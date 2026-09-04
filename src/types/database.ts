@@ -930,6 +930,7 @@ export type Database = {
         Row: {
           admin_note: string | null
           billing_address_id: string | null
+          contact_email: string | null
           coupon_id: string | null
           customer_id: string | null
           customer_note: string | null
@@ -951,6 +952,7 @@ export type Database = {
         Insert: {
           admin_note?: string | null
           billing_address_id?: string | null
+          contact_email?: string | null
           coupon_id?: string | null
           customer_id?: string | null
           customer_note?: string | null
@@ -972,6 +974,7 @@ export type Database = {
         Update: {
           admin_note?: string | null
           billing_address_id?: string | null
+          contact_email?: string | null
           coupon_id?: string | null
           customer_id?: string | null
           customer_note?: string | null
@@ -1609,6 +1612,7 @@ export type Database = {
       place_guest_order: {
         Args: {
           p_city_id: string
+          p_contact_email?: string
           p_coupon_code?: string
           p_customer_note?: string
           p_items: Json

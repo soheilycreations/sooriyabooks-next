@@ -226,14 +226,6 @@ export function CheckoutForm() {
     setError(null);
     startTransition(async () => {
       const usingGift = shipToDifferentAddress;
-      // No `email` column on addresses/orders — the buyer's contact email
-      // (always collected, regardless of gift mode) rides along as a note
-      // instead, alongside the gift recipient's special instructions when
-      // that applies.
-      const noteParts = [
-        `Contact email: ${address.email}`,
-        usingGift && gift.specialInstructions ? `Note: ${gift.specialInstructions}` : null,
-      ];
 
       const result = await createOrder({
         items: items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
@@ -248,7 +240,8 @@ export function CheckoutForm() {
             }
           : { recipientName: address.recipientName, phone: address.phone, line1: address.line1, line2: address.line2, postalCode: address.postalCode },
         paymentMethod,
-        customerNote: noteParts.filter(Boolean).join("\n") || undefined,
+        contactEmail: address.email,
+        customerNote: usingGift && gift.specialInstructions ? `Note: ${gift.specialInstructions}` : undefined,
       });
       if (!result.ok) {
         setError(result.error);

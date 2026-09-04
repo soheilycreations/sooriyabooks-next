@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { checkoutSchema, type CheckoutInput } from "@/lib/validation/checkout";
 import { quoteShippingCost } from "@/lib/shipping/queries";
+import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import type { ActionResult } from "@/lib/auth/actions";
 
 /**
@@ -48,6 +49,7 @@ export async function createOrder(
       p_items: data.items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
       p_coupon_code: data.couponCode || undefined,
       p_customer_note: data.customerNote || undefined,
+      p_contact_email: data.contactEmail,
     });
     if (guestError) {
       console.error("createOrder (guest): place_guest_order failed:", guestError.message);
@@ -57,6 +59,7 @@ export async function createOrder(
     if (!row) {
       return { ok: false, error: "Could not create order. Please try again." };
     }
+    await sendOrderConfirmationEmail(row.order_id);
     return { ok: true, data: { orderId: row.order_id, orderNumber: row.order_number, isGuest: true } };
   }
 
@@ -200,6 +203,7 @@ export async function createOrder(
       billing_address_id: addressId,
       total_weight_g: totalWeightGrams,
       customer_note: data.customerNote || null,
+      contact_email: data.contactEmail,
     })
     .select("id, order_number")
     .single();
@@ -307,5 +311,6 @@ export async function createOrder(
     }
   }
 
+  await sendOrderConfirmationEmail(order.id);
   return { ok: true, data: { orderId: order.id, orderNumber: order.order_number, isGuest: false } };
 }

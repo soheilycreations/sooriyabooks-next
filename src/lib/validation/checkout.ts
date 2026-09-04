@@ -22,6 +22,9 @@ export const checkoutSchema = z.object({
   paymentMethod: z.enum(["cod", "bank_ipg", "bank_transfer"]),
   couponCode: z.string().optional(),
   customerNote: z.string().optional(),
+  /** The buyer's own contact email — always collected regardless of gift
+   *  mode, and independent of wherever the package itself ships. */
+  contactEmail: z.string().email("Enter a valid email address"),
 }).refine((data) => data.addressId || data.newAddress, {
   message: "An address is required",
   path: ["addressId"],
