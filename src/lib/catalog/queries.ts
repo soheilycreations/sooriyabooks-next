@@ -238,7 +238,7 @@ export async function searchBooks(
 
 export async function getBooksByCategory(
   categorySlug: string,
-  { limit = 24, sort = "newest" }: { limit?: number; sort?: BookSort } = {},
+  { limit = 24, offset = 0, sort = "newest" }: { limit?: number; offset?: number; sort?: BookSort } = {},
 ): Promise<{ books: BookCardData[]; total: number }> {
   const supabase = await createClient();
   const { data: category } = await supabase
@@ -261,7 +261,7 @@ export async function getBooksByCategory(
     .eq("is_active", true)
     .eq("book_categories.category_id", category.id)
     .order(column, { ascending })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   const books = (data ?? []).map(mapBookRowToCard);
   return { books, total: count ?? books.length };

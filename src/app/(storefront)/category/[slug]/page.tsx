@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProductCard } from "@/components/storefront/product-card";
 import { SortSelect } from "@/components/storefront/sort-select";
-import { Reveal } from "@/components/storefront/reveal";
 import { getBooksByCategory, getAllCategories, type BookSort } from "@/lib/catalog/queries";
 import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 import { createClient } from "@/lib/supabase/server";
 import { decodeHtmlEntities } from "@/lib/utils";
+import { CategoryResults } from "./category-results";
 
 export const revalidate = 3600;
 
@@ -43,18 +42,17 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ sort?: string; limit?: string }>;
+  searchParams: Promise<{ sort?: string }>;
 }) {
   const { slug } = await params;
-  const { sort: sortParam, limit: limitParam } = await searchParams;
+  const { sort: sortParam } = await searchParams;
   const category = await getCategory(slug);
   if (!category) notFound();
 
   const sort: BookSort = sortParam === "price_asc" || sortParam === "price_desc" ? sortParam : "newest";
-  const limit = Math.max(PAGE_SIZE, Number(limitParam) || PAGE_SIZE);
 
   const [{ books, total }, wishlistIds, allCategories] = await Promise.all([
-    getBooksByCategory(slug, { limit, sort }),
+    getBooksByCategory(slug, { limit: PAGE_SIZE, sort }),
     getWishlistBookIds(),
     getAllCategories(),
   ]);
@@ -66,11 +64,6 @@ export default async function CategoryPage({
   // discover the child at all. Breadcrumb covers the reverse direction.
   const subCategories = allCategories.filter((c) => c.parent_id === category.id);
   const parentCategory = category.parent_id ? allCategories.find((c) => c.id === category.parent_id) : null;
-
-  const hasMore = books.length < total;
-  const params2 = new URLSearchParams();
-  if (sortParam) params2.set("sort", sortParam);
-  params2.set("limit", String(limit + PAGE_SIZE));
 
   return (
     <div className="container py-12 md:py-16">
@@ -114,26 +107,13 @@ export default async function CategoryPage({
       )}
 
       {books.length > 0 ? (
-        <>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
-            {books.map((book, i) => (
-              <Reveal key={book.id} index={i % 8}>
-                <ProductCard book={book} showWishlist inWishlist={wishlistIds.has(book.id)} />
-              </Reveal>
-            ))}
-          </div>
-          {hasMore && (
-            <div className="mt-12 text-center">
-              <Link
-                href={`?${params2.toString()}`}
-                scroll={false}
-                className="inline-flex h-11 items-center justify-center rounded-md border border-input px-6 text-sm font-medium transition-colors hover:bg-secondary"
-              >
-                Load more books
-              </Link>
-            </div>
-          )}
-        </>
+        <CategoryResults
+          categorySlug={slug}
+          sort={sort}
+          initialBooks={books}
+          total={total}
+          initialWishlistIds={books.filter((b) => wishlistIds.has(b.id)).map((b) => b.id)}
+        />
       ) : (
         <p className="py-12 text-center text-muted-foreground">No books in this category yet.</p>
       )}

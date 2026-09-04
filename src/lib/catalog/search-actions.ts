@@ -1,6 +1,6 @@
 "use server";
 
-import { searchBooks, searchBooksPreview, type SearchFilters, type BookCardData } from "@/lib/catalog/queries";
+import { searchBooks, searchBooksPreview, getBooksByCategory, type SearchFilters, type BookCardData, type BookSort } from "@/lib/catalog/queries";
 import { getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 
 /**
@@ -25,5 +25,23 @@ export async function loadMoreBooksAction(
   limit: number,
 ): Promise<{ books: BookCardData[]; total: number; wishlistIds: string[] }> {
   const [{ books, total }, wishlistIds] = await Promise.all([searchBooks(filters, offset, limit), getWishlistBookIds()]);
+  return { books, total, wishlistIds: books.filter((b) => wishlistIds.has(b.id)).map((b) => b.id) };
+}
+
+/**
+ * Same "append in place" fix as loadMoreBooksAction, for category pages —
+ * the previous "Load more" there was a plain <Link href="?limit=...">,
+ * which on mobile browsers reset scroll to the top on every click.
+ */
+export async function loadMoreCategoryBooksAction(
+  categorySlug: string,
+  sort: BookSort,
+  offset: number,
+  limit: number,
+): Promise<{ books: BookCardData[]; total: number; wishlistIds: string[] }> {
+  const [{ books, total }, wishlistIds] = await Promise.all([
+    getBooksByCategory(categorySlug, { offset, limit, sort }),
+    getWishlistBookIds(),
+  ]);
   return { books, total, wishlistIds: books.filter((b) => wishlistIds.has(b.id)).map((b) => b.id) };
 }
