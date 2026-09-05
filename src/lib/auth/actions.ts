@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { loginSchema, registerSchema, type LoginInput, type RegisterInput } from "@/lib/validation/auth";
+import { verifyRecaptcha } from "@/lib/security/recaptcha";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -45,10 +46,13 @@ async function runPostSignInChecks(
   return { ok: true, data: undefined };
 }
 
-export async function signIn(input: LoginInput): Promise<ActionResult> {
+export async function signIn(input: LoginInput, recaptchaToken?: string): Promise<ActionResult> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Invalid input", fieldErrors: flattenZodErrors(parsed.error) };
+  }
+  if (!(await verifyRecaptcha(recaptchaToken))) {
+    return { ok: false, error: "Please complete the CAPTCHA verification" };
   }
 
   const supabase = await createClient();
@@ -81,10 +85,13 @@ export async function completeSocialSignIn(): Promise<ActionResult> {
   return runPostSignInChecks(supabase, user.id);
 }
 
-export async function signUp(input: RegisterInput): Promise<ActionResult> {
+export async function signUp(input: RegisterInput, recaptchaToken?: string): Promise<ActionResult> {
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Invalid input", fieldErrors: flattenZodErrors(parsed.error) };
+  }
+  if (!(await verifyRecaptcha(recaptchaToken))) {
+    return { ok: false, error: "Please complete the CAPTCHA verification" };
   }
 
   const supabase = await createClient();

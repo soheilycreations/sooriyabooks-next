@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormAlert } from "@/components/shared/form-alert";
 import { GoogleOneTap } from "@/components/shared/google-one-tap";
+import { Recaptcha, RECAPTCHA_ENABLED } from "@/components/shared/recaptcha";
 import { signIn } from "@/lib/auth/actions";
 
 const GOOGLE_ENABLED = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
@@ -19,12 +20,13 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await signIn({ email, password });
+      const result = await signIn({ email, password }, recaptchaToken ?? undefined);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -59,8 +61,11 @@ export function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
+        {RECAPTCHA_ENABLED && (
+          <Recaptcha onVerify={setRecaptchaToken} onExpire={() => setRecaptchaToken(null)} />
+        )}
         {error && <FormAlert>{error}</FormAlert>}
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" className="w-full" disabled={isPending || (RECAPTCHA_ENABLED && !recaptchaToken)}>
           {isPending ? "Signing in..." : "Sign In"}
         </Button>
       </form>

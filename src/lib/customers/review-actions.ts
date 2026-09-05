@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/session";
+import { verifyRecaptcha } from "@/lib/security/recaptcha";
 import type { ActionResult } from "@/lib/auth/actions";
 
 export async function submitReview(
@@ -11,6 +12,7 @@ export async function submitReview(
   rating: number,
   title: string,
   body: string,
+  recaptchaToken?: string,
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const {
@@ -18,6 +20,9 @@ export async function submitReview(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Please sign in to leave a review" };
   if (rating < 1 || rating > 5) return { ok: false, error: "Rating must be between 1 and 5" };
+  if (!(await verifyRecaptcha(recaptchaToken))) {
+    return { ok: false, error: "Please complete the CAPTCHA verification" };
+  }
 
   // Verified-purchase check: find this customer's most recent order_item
   // for this book, if any (does not need to be "delivered" — a confirmed

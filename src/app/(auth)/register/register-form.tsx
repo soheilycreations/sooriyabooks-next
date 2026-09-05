@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormAlert } from "@/components/shared/form-alert";
+import { Recaptcha, RECAPTCHA_ENABLED } from "@/components/shared/recaptcha";
 import { signUp } from "@/lib/auth/actions";
 
 export function RegisterForm() {
@@ -14,12 +15,13 @@ export function RegisterForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ fullName: "", email: "", password: "", phone: "" });
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await signUp(form);
+      const result = await signUp(form, recaptchaToken ?? undefined);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -72,8 +74,11 @@ export function RegisterForm() {
           onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
         />
       </div>
+      {RECAPTCHA_ENABLED && (
+        <Recaptcha onVerify={setRecaptchaToken} onExpire={() => setRecaptchaToken(null)} />
+      )}
       {error && <FormAlert>{error}</FormAlert>}
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={isPending || (RECAPTCHA_ENABLED && !recaptchaToken)}>
         {isPending ? "Creating account..." : "Create Account"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">

@@ -6,6 +6,7 @@ import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { submitReview } from "@/lib/customers/review-actions";
+import { Recaptcha, RECAPTCHA_ENABLED } from "@/components/shared/recaptcha";
 import { formatDate, cn } from "@/lib/utils";
 import type { ReviewData } from "@/lib/customers/review-queries";
 
@@ -35,6 +36,7 @@ export function ReviewsSection({ bookId, reviews }: { bookId: string; reviews: R
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
@@ -43,7 +45,7 @@ export function ReviewsSection({ bookId, reviews }: { bookId: string; reviews: R
     setMessage(null);
     startTransition(async () => {
       const bookSlugMatch = window.location.pathname.split("/").pop() || "";
-      const result = await submitReview(bookId, bookSlugMatch, rating, title, body);
+      const result = await submitReview(bookId, bookSlugMatch, rating, title, body, recaptchaToken ?? undefined);
       if (!result.ok) {
         setMessage(result.error);
         return;
@@ -89,7 +91,10 @@ export function ReviewsSection({ bookId, reviews }: { bookId: string; reviews: R
             onChange={(e) => setBody(e.target.value)}
             className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
-          <Button type="submit" disabled={isPending}>
+          {RECAPTCHA_ENABLED && (
+            <Recaptcha onVerify={setRecaptchaToken} onExpire={() => setRecaptchaToken(null)} />
+          )}
+          <Button type="submit" disabled={isPending || (RECAPTCHA_ENABLED && !recaptchaToken)}>
             {isPending ? "Submitting..." : "Submit Review"}
           </Button>
         </form>

@@ -5,18 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormAlert } from "@/components/shared/form-alert";
+import { Recaptcha, RECAPTCHA_ENABLED } from "@/components/shared/recaptcha";
 import { submitContactMessage } from "@/lib/content/contact-actions";
 
 export function ContactForm() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus(null);
     startTransition(async () => {
-      const result = await submitContactMessage(form);
+      const result = await submitContactMessage(form, recaptchaToken ?? undefined);
       if (!result.ok) {
         setStatus({ ok: false, message: result.error });
         return;
@@ -46,8 +48,11 @@ export function ContactForm() {
           onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
         />
       </div>
+      {RECAPTCHA_ENABLED && (
+        <Recaptcha onVerify={setRecaptchaToken} onExpire={() => setRecaptchaToken(null)} />
+      )}
       {status && <FormAlert tone={status.ok ? "success" : "error"}>{status.message}</FormAlert>}
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={isPending || (RECAPTCHA_ENABLED && !recaptchaToken)}>
         {isPending ? "Sending..." : "Send Message"}
       </Button>
     </form>
