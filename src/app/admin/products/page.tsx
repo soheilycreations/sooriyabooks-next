@@ -1,12 +1,23 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import Image from "next/image";
+import { Pencil, ImageOff } from "lucide-react";
 import { requireStaff } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { Badge } from "@/components/ui/badge";
 import { deleteBook } from "@/lib/catalog/actions";
+import { resolveCoverUrl } from "@/lib/catalog/queries";
 import { formatCurrency, sanitizeSearchTerm } from "@/lib/utils";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function primaryCoverUrl(book: any): string | null {
+  const images = book.book_images ?? [];
+  const primary = [...images].sort(
+    (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+  )[0];
+  return resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
+}
 
 export default async function AdminProductsPage({
   searchParams,
@@ -19,7 +30,11 @@ export default async function AdminProductsPage({
 
   let query = supabase
     .from("books")
-    .select("id, title, sku, selling_price, discount_price, is_active, is_featured, authors ( name ), inventory ( quantity_on_hand, quantity_reserved, stock_tracking_enabled, untracked_available )")
+    .select(
+      `id, title, sku, selling_price, discount_price, is_active, is_featured,
+       authors ( name ), inventory ( quantity_on_hand, quantity_reserved, stock_tracking_enabled, untracked_available ),
+       book_images ( is_primary, sort_order, media_assets ( storage_path ) )`,
+    )
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -46,6 +61,7 @@ export default async function AdminProductsPage({
         <table className="w-full text-sm">
           <thead className="bg-secondary/50 text-left text-xs uppercase text-muted-foreground">
             <tr>
+              <th className="px-4 py-3" />
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">SKU</th>
               <th className="px-4 py-3">Author</th>
@@ -60,8 +76,20 @@ export default async function AdminProductsPage({
             {(books ?? []).map((book: any) => {
               const tracked = book.inventory?.stock_tracking_enabled ?? true;
               const stock = (book.inventory?.quantity_on_hand ?? 0) - (book.inventory?.quantity_reserved ?? 0);
+              const coverUrl = primaryCoverUrl(book);
               return (
                 <tr key={book.id} className="border-t">
+                  <td className="px-4 py-3">
+                    <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-sm bg-secondary">
+                      {coverUrl ? (
+                        <Image src={coverUrl} alt="" fill sizes="40px" className="object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <ImageOff className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td className="max-w-xs truncate px-4 py-3 font-medium">{book.title}</td>
                   <td className="px-4 py-3 text-muted-foreground">{book.sku}</td>
                   <td className="px-4 py-3 text-muted-foreground">{book.authors?.name ?? "—"}</td>

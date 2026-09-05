@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { resolveCoverUrl } from "@/lib/catalog/queries";
 
 export interface DateRange {
   from: Date;
@@ -40,13 +41,32 @@ export function resolveDateRange(preset: string, customFrom?: string, customTo?:
   }
 }
 
+/** The immediately-preceding period of the same length — "this month" ->
+ *  "last month" (well, the same number of days immediately before it,
+ *  which is close enough for a growth % without needing calendar-aware
+ *  month arithmetic). Used to compute growth indicators on the dashboard. */
+export function previousPeriod(range: DateRange): DateRange {
+  const durationMs = range.to.getTime() - range.from.getTime();
+  const to = new Date(range.from.getTime() - 1);
+  const from = new Date(to.getTime() - durationMs);
+  return { from, to };
+}
+
+/** Percentage change from `previous` to `current`, or null when there's no
+ *  previous-period baseline to compare against (avoids a misleading "+∞%"
+ *  or divide-by-zero). */
+export function growthPercent(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return ((current - previous) / previous) * 100;
+}
+
 export interface SalesReport {
   totalRevenue: number;
   totalOrders: number;
   averageOrderValue: number;
   newCustomers: number;
   dailySeries: { date: string; revenue: number; orders: number }[];
-  bestSellers: { title: string; quantitySold: number; revenue: number }[];
+  bestSellers: { title: string; quantitySold: number; revenue: number; coverUrl: string | null }[];
 }
 
 export async function getSalesReport(range: DateRange): Promise<SalesReport> {
@@ -88,14 +108,25 @@ export async function getSalesReport(range: DateRange): Promise<SalesReport> {
   if (orderList.length > 0) {
     const { data: items } = await supabase
       .from("order_items")
-      .select("title_snapshot, quantity, line_total, order_id")
+      .select(
+        `title_snapshot, quantity, line_total, order_id,
+         books ( book_images ( is_primary, sort_order, media_assets ( storage_path ) ) )`,
+      )
       .in("order_id", orderList.map((o) => o.id));
 
-    const byTitle = new Map<string, { quantitySold: number; revenue: number }>();
+    const byTitle = new Map<string, { quantitySold: number; revenue: number; coverUrl: string | null }>();
     for (const item of items ?? []) {
-      const entry = byTitle.get(item.title_snapshot) ?? { quantitySold: 0, revenue: 0 };
+      const entry = byTitle.get(item.title_snapshot) ?? { quantitySold: 0, revenue: 0, coverUrl: null };
       entry.quantitySold += item.quantity;
       entry.revenue += Number(item.line_total);
+      if (!entry.coverUrl) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const images = (item.books as any)?.book_images ?? [];
+        const primary = [...images].sort(
+          (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+        )[0];
+        entry.coverUrl = resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
+      }
       byTitle.set(item.title_snapshot, entry);
     }
     bestSellers = Array.from(byTitle.entries())

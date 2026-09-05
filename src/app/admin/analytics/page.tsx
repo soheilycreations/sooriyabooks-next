@@ -1,3 +1,5 @@
+import Image from "next/image";
+import { ImageOff } from "lucide-react";
 import { requireStaff } from "@/lib/auth/session";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getSalesReport, getInventorySummary, resolveDateRange } from "@/lib/reports/queries";
 import { SalesChart } from "@/components/admin/sales-chart";
 import { ExportCsvButton } from "@/components/admin/export-csv-button";
-import { DateFilter } from "./date-filter";
+import { DateFilter } from "@/components/admin/date-filter";
 
 export default async function AdminAnalyticsPage({
   searchParams,
@@ -56,8 +58,17 @@ export default async function AdminAnalyticsPage({
           <CardContent className="space-y-2 text-sm">
             {report.bestSellers.length === 0 && <p className="text-muted-foreground">No sales in this period.</p>}
             {report.bestSellers.map((b, i) => (
-              <div key={i} className="flex items-center justify-between border-b py-2 last:border-0">
-                <span className="truncate pr-2">{b.title}</span>
+              <div key={i} className="flex items-center gap-3 border-b py-2 last:border-0">
+                <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-sm bg-secondary">
+                  {b.coverUrl ? (
+                    <Image src={b.coverUrl} alt="" fill sizes="36px" className="object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <ImageOff className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <span className="min-w-0 flex-1 truncate">{b.title}</span>
                 <span className="shrink-0 text-muted-foreground">{b.quantitySold} sold</span>
               </div>
             ))}

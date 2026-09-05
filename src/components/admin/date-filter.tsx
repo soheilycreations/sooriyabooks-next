@@ -10,14 +10,14 @@ const PRESETS = [
   { value: "year", label: "This Year" },
 ];
 
-export function DateFilter({ current }: { current: string }) {
+export function DateFilter({ current, basePath = "/admin/analytics" }: { current: string; basePath?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   function setPreset(preset: string) {
     const params = new URLSearchParams(searchParams);
     params.set("range", preset);
-    router.push(`/admin/analytics?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   }
 
   return (
@@ -40,7 +40,7 @@ export function DateFilter({ current }: { current: string }) {
           params.set("range", "custom");
           params.set("from", String(form.get("from")));
           params.set("to", String(form.get("to")));
-          router.push(`/admin/analytics?${params.toString()}`);
+          router.push(`${basePath}?${params.toString()}`);
         }}
       >
         <input type="date" name="from" className="h-8 rounded-md border border-input bg-background px-2 text-xs" />

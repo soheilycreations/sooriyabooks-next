@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NAV_SECTIONS = [
+export const NAV_SECTIONS = [
   {
     items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }],
   },
@@ -54,9 +54,49 @@ const NAV_SECTIONS = [
   },
 ];
 
-export function AdminSidebar() {
+/** The nav link list itself — shared by the desktop sidebar and the mobile
+ *  drawer (AdminMobileNav) so the two can never drift out of sync. */
+export function AdminNavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
+  return (
+    <nav className="space-y-6 p-4">
+      {NAV_SECTIONS.map((section, i) => (
+        <div key={i}>
+          {section.title && (
+            <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {section.title}
+            </p>
+          )}
+          <div className="space-y-1">
+            {section.items.map((item) => {
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-foreground/70 hover:bg-secondary hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+export function AdminSidebar() {
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
       <div className="flex h-16 items-center border-b px-6">
@@ -64,38 +104,7 @@ export function AdminSidebar() {
           Sooriya <span className="text-accent">Admin</span>
         </Link>
       </div>
-      <nav className="space-y-6 p-4">
-        {NAV_SECTIONS.map((section, i) => (
-          <div key={i}>
-            {section.title && (
-              <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {section.title}
-              </p>
-            )}
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-foreground/70 hover:bg-secondary hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
+      <AdminNavLinks />
     </aside>
   );
 }

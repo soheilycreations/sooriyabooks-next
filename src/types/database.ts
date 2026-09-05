@@ -884,6 +884,27 @@ export type Database = {
           },
         ]
       }
+      page_views: {
+        Row: {
+          created_at: string
+          id: number
+          path: string
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          path: string
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          path?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
       order_status_history: {
         Row: {
           changed_at: string

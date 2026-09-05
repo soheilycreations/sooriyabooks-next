@@ -1,11 +1,23 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { ImageOff } from "lucide-react";
 import { requireStaff } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolveCoverUrl } from "@/lib/catalog/queries";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusControl } from "./status-control";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function itemCoverUrl(item: any): string | null {
+  const images = item.books?.book_images ?? [];
+  const primary = [...images].sort(
+    (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+  )[0];
+  return resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
+}
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
@@ -18,7 +30,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
       .select("*, profiles ( full_name, phone ), addresses:shipping_address_id ( recipient_name, phone, line1, line2, postal_code, shipping_cities ( name ) )")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("order_items").select("*").eq("order_id", id),
+    supabase
+      .from("order_items")
+      .select("*, books ( book_images ( is_primary, sort_order, media_assets ( storage_path ) ) )")
+      .eq("order_id", id),
     supabase.from("order_status_history").select("status, note, changed_at").eq("order_id", id).order("changed_at"),
   ]);
 
@@ -36,12 +51,26 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Items</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {(items ?? []).map((item) => (
-              <div key={item.id} className="flex justify-between border-b py-2 last:border-0">
-                <span>{item.title_snapshot} &times; {item.quantity}</span>
-                <span>{formatCurrency(Number(item.line_total))}</span>
-              </div>
-            ))}
+            {(items ?? []).map((item) => {
+              const coverUrl = itemCoverUrl(item);
+              return (
+                <div key={item.id} className="flex items-center justify-between gap-3 border-b py-2 last:border-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-sm bg-secondary">
+                      {coverUrl ? (
+                        <Image src={coverUrl} alt="" fill sizes="40px" className="object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <ImageOff className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="truncate">{item.title_snapshot} &times; {item.quantity}</span>
+                  </div>
+                  <span className="shrink-0">{formatCurrency(Number(item.line_total))}</span>
+                </div>
+              );
+            })}
             <div className="space-y-1 border-t pt-3">
               <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{formatCurrency(Number(o.subtotal))}</span></div>
               <div className="flex justify-between text-muted-foreground"><span>Shipping</span><span>{formatCurrency(Number(o.shipping_total))}</span></div>
