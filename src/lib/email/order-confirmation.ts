@@ -5,13 +5,13 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import { resolveCoverUrl } from "@/lib/catalog/queries";
 import { getResendClient } from "./resend";
+import { LOGO_PNG_BASE64 } from "./logo-base64";
 
 const ACCENT = "#f1aa37";
 const FOREGROUND = "#121212";
 const MUTED = "#6b6b6b";
 const BORDER = "#e5e0d8";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sooriyabooks.lk";
-const LOGO_URL = `${SITE_URL}/brand/sooriya-logo.png`;
+const LOGO_CID = "sooriya-logo";
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   cod: "Cash on Delivery",
@@ -85,13 +85,19 @@ export async function sendOrderConfirmationEmail(orderId: string) {
   });
 
   try {
-    const pdf = renderOrderSummaryPdf(order, items);
+    // The SDK JSON.stringify()s the whole request body as-is — a raw Buffer
+    // would serialize as {"type":"Buffer","data":[...]}, not the base64
+    // string Resend's API actually expects for attachment content.
+    const pdfBase64 = renderOrderSummaryPdf(order, items).toString("base64");
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || "Sooriya Publishers <onboarding@resend.dev>",
       to: order.contact_email,
       subject: `Order confirmed — ${order.order_number}`,
       html: renderOrderConfirmationHtml(order, items),
-      attachments: [{ filename: `${order.order_number}.pdf`, content: pdf }],
+      attachments: [
+        { filename: `${order.order_number}.pdf`, content: pdfBase64 },
+        { filename: "sooriya-logo.png", content: LOGO_PNG_BASE64, contentId: LOGO_CID },
+      ],
     });
   } catch (err) {
     console.error(`sendOrderConfirmationEmail: failed to send for order ${orderId}:`, err);
@@ -163,7 +169,7 @@ function renderOrderConfirmationHtml(order: OrderForEmail, items: ItemForEmail[]
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="background:${FOREGROUND};padding:20px 32px;">
-                <img src="${LOGO_URL}" alt="Sooriya Publishers" height="32" style="display:block;height:32px;width:auto;" />
+                <img src="cid:${LOGO_CID}" alt="Sooriya Publishers" height="32" style="display:block;height:32px;width:auto;" />
               </td>
             </tr>
             <tr>
