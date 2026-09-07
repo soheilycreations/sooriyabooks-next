@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getPaymentProvider } from "@/lib/payments/registry";
+import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 
 /**
  * The actual endpoint Sampath's Paycorp IPG posts the customer's browser
@@ -72,6 +73,11 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("order_status_history")
         .insert({ order_id: order.id, status: "confirmed", note: "Payment confirmed via Bank IPG" });
+      // Only now — not at checkout submission — since this is the first
+      // point the payment is actually known to have succeeded. Sending it
+      // earlier meant a customer who abandoned or was declined at the
+      // gateway still got an "Order Confirmed" email despite never paying.
+      await sendOrderConfirmationEmail(order.id);
     }
   } else {
     // The stock reserved at checkout must be given back — otherwise a

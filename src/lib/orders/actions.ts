@@ -59,7 +59,14 @@ export async function createOrder(
     if (!row) {
       return { ok: false, error: "Could not create order. Please try again." };
     }
-    await sendOrderConfirmationEmail(row.order_id);
+    // Bank IPG isn't actually confirmed yet at this point — the customer
+    // is about to be sent to the gateway, and may decline, abandon, or
+    // still be entering card details. Its confirmation email fires only
+    // once payment truly succeeds, from the return handler
+    // (src/app/api/payments/bank-ipg/return/route.ts) instead.
+    if (data.paymentMethod !== "bank_ipg") {
+      await sendOrderConfirmationEmail(row.order_id);
+    }
     return { ok: true, data: { orderId: row.order_id, orderNumber: row.order_number, isGuest: true } };
   }
 
@@ -311,6 +318,10 @@ export async function createOrder(
     }
   }
 
-  await sendOrderConfirmationEmail(order.id);
+  // Same reasoning as the guest path above — Bank IPG's confirmation
+  // email fires only once payment truly succeeds, from the return handler.
+  if (data.paymentMethod !== "bank_ipg") {
+    await sendOrderConfirmationEmail(order.id);
+  }
   return { ok: true, data: { orderId: order.id, orderNumber: order.order_number, isGuest: false } };
 }
