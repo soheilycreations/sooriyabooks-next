@@ -81,11 +81,6 @@ export default async function OrderDetailPage({
               payment was not completed. You have not been charged.
             </p>
           </div>
-          {order.payment_method === "bank_ipg" && (
-            <div className="mt-1 w-full max-w-xs">
-              <RetryPaymentButton orderId={order.id} />
-            </div>
-          )}
         </div>
       ) : (
         placed === "1" && (
@@ -163,6 +158,12 @@ export default async function OrderDetailPage({
               Payment: {order.payment_method.replace(/_/g, " ")} ({order.payment_status})
             </p>
           </div>
+
+          {order.status === "failed" && order.payment_method === "bank_ipg" && (
+            <div className="mt-4 max-w-xs">
+              <RetryPaymentButton orderId={order.id} />
+            </div>
+          )}
         </div>
 
         {address && (

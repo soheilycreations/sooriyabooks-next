@@ -51,11 +51,6 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
                 payment was not completed. You have not been charged.
               </p>
             </div>
-            {order.paymentMethod === "bank_ipg" && (
-              <div className="mt-1 w-full max-w-xs">
-                <RetryPaymentButton orderId={order.orderId} />
-              </div>
-            )}
           </div>
         ) : (
           justPlaced && (
@@ -136,6 +131,12 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
                 Payment: {order.paymentMethod.replace(/_/g, " ")} ({order.paymentStatus})
               </p>
             </div>
+
+            {order.status === "failed" && order.paymentMethod === "bank_ipg" && (
+              <div className="mt-4 max-w-xs">
+                <RetryPaymentButton orderId={order.orderId} />
+              </div>
+            )}
           </div>
 
           <div>
