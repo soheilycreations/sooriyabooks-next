@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { sendPaymentFailedEmail } from "@/lib/email/order-confirmation";
 import { Button } from "@/components/ui/button";
 import { RetryPaymentButton } from "./retry-payment-button";
 
@@ -57,6 +58,7 @@ export default async function CheckoutReturnPage({
       status: "failed",
       note: "Payment was not completed at the gateway (cancelled or declined before checkout finished)",
     });
+    await sendPaymentFailedEmail(order.id);
   }
 
   const orderUrl = order.customer_id ? `/account/orders/${order.id}` : `/track-order/${order.order_number}`;

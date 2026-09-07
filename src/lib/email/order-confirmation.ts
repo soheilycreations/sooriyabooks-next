@@ -12,6 +12,7 @@ const FOREGROUND = "#121212";
 const MUTED = "#6b6b6b";
 const BORDER = "#e5e0d8";
 const LOGO_CID = "sooriya-logo";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sooriyabooks.lk";
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   cod: "Cash on Delivery",
@@ -102,6 +103,105 @@ export async function sendOrderConfirmationEmail(orderId: string) {
   } catch (err) {
     console.error(`sendOrderConfirmationEmail: failed to send for order ${orderId}:`, err);
   }
+}
+
+/**
+ * Sends a "payment didn't go through" notice — called from the Bank IPG
+ * return handler and the checkout/return (cancelUrl) page whenever an
+ * order transitions into "failed", so a declined or abandoned card
+ * payment doesn't leave the customer silently wondering what happened.
+ * Same "not configured yet"/best-effort behavior as
+ * sendOrderConfirmationEmail() — never blocks or throws into the caller.
+ */
+export async function sendPaymentFailedEmail(orderId: string, reason?: string) {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn(`sendPaymentFailedEmail: RESEND_API_KEY not configured — skipping order ${orderId}`);
+    return;
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("order_number, contact_email, customer_id, grand_total")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (!order) {
+    console.error(`sendPaymentFailedEmail: order ${orderId} not found`);
+    return;
+  }
+  if (!order.contact_email) return;
+
+  const retryUrl = order.customer_id
+    ? `${SITE_URL}/account/orders/${orderId}`
+    : `${SITE_URL}/track-order/${order.order_number}`;
+
+  try {
+    await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "Sooriya Publishers <onboarding@resend.dev>",
+      to: order.contact_email,
+      subject: `Payment not completed — ${order.order_number}`,
+      html: renderPaymentFailedHtml(order.order_number, Number(order.grand_total), retryUrl, reason),
+      attachments: [{ filename: "sooriya-logo.png", content: LOGO_PNG_BASE64, contentId: LOGO_CID }],
+    });
+  } catch (err) {
+    console.error(`sendPaymentFailedEmail: failed to send for order ${orderId}:`, err);
+  }
+}
+
+function renderPaymentFailedHtml(orderNumber: string, grandTotal: number, retryUrl: string, reason?: string): string {
+  return `
+<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f7f5f1;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f1;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="background:${FOREGROUND};padding:20px 32px;">
+                <img src="cid:${LOGO_CID}" alt="Sooriya Publishers" height="32" style="display:block;height:32px;width:auto;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <p style="margin:0 0 4px;color:#c0392b;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;">Payment Not Completed</p>
+                <h1 style="margin:0 0 20px;color:${FOREGROUND};font-size:24px;">${escapeHtml(orderNumber)}</h1>
+                <p style="margin:0 0 16px;color:${FOREGROUND};font-size:14px;line-height:1.6;">
+                  We couldn't process your payment of <strong>${formatCurrency(grandTotal)}</strong> for this order.
+                  You have not been charged. Your order is saved, so you can try again whenever you're ready.
+                </p>
+                ${
+                  reason
+                    ? `<p style="margin:0 0 24px;color:${MUTED};font-size:13px;">Reason given by the bank: ${escapeHtml(reason)}</p>`
+                    : ""
+                }
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="border-radius:6px;background:${ACCENT};">
+                      <a href="${retryUrl}" style="display:inline-block;padding:12px 24px;color:${FOREGROUND};font-size:14px;font-weight:bold;text-decoration:none;">
+                        View Order &amp; Try Again
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:28px 0 0;color:${MUTED};font-size:12px;line-height:1.6;">
+                  Questions? Reply to this email or WhatsApp us at 077 408 9433.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f7f5f1;padding:16px 32px;text-align:center;">
+                <p style="margin:0;color:${MUTED};font-size:12px;">Sooriya Publishers &middot; sooriyabooks.lk</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 }
 
 interface OrderForEmail {

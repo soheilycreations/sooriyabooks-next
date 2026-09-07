@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getPaymentProvider } from "@/lib/payments/registry";
-import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
+import { sendOrderConfirmationEmail, sendPaymentFailedEmail } from "@/lib/email/order-confirmation";
 
 /**
  * The actual endpoint Sampath's Paycorp IPG posts the customer's browser
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from("order_status_history")
       .insert({ order_id: order.id, status: "failed", note: result.errorMessage || "Payment declined via Bank IPG" });
+    await sendPaymentFailedEmail(order.id, result.errorMessage);
   }
 
   // Guests have no /account/orders to redirect to — send them to the same
