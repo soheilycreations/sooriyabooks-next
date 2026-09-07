@@ -1661,6 +1661,10 @@ export type Database = {
         Args: { p_book_id: string; p_order_id: string; p_quantity: number }
         Returns: undefined
       }
+      release_reserved_stock_system: {
+        Args: { p_book_id: string; p_order_id: string; p_quantity: number }
+        Returns: undefined
+      }
       reserve_stock: {
         Args: { p_book_id: string; p_order_id: string; p_quantity: number }
         Returns: undefined

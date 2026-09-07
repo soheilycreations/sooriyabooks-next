@@ -74,7 +74,27 @@ export async function POST(request: NextRequest) {
         .insert({ order_id: order.id, status: "confirmed", note: "Payment confirmed via Bank IPG" });
     }
   } else {
+    // The stock reserved at checkout must be given back — otherwise a
+    // declined/abandoned card payment permanently locks those units as
+    // "reserved" with no order ever completing. Only on the first
+    // transition into "failed": if the order already failed (e.g. a
+    // retried payment attempt also declined), the first failure already
+    // released it and doing it again would double-release.
+    if (order.status === "pending_payment") {
+      const { data: items } = await supabase.from("order_items").select("book_id, quantity").eq("order_id", order.id);
+      for (const item of items ?? []) {
+        if (!item.book_id) continue;
+        await supabase.rpc("release_reserved_stock_system", {
+          p_book_id: item.book_id,
+          p_quantity: item.quantity,
+          p_order_id: order.id,
+        });
+      }
+    }
     await supabase.from("orders").update({ payment_status: "failed", status: "failed" }).eq("id", order.id);
+    await supabase
+      .from("order_status_history")
+      .insert({ order_id: order.id, status: "failed", note: result.errorMessage || "Payment declined via Bank IPG" });
   }
 
   // Guests have no /account/orders to redirect to — send them to the same
