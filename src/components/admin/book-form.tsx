@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageUploader, type UploadedImage } from "@/components/admin/image-uploader";
+import { BarcodeScannerButton } from "@/components/admin/barcode-scanner-button";
 import { createBook, updateBook, setBookImages } from "@/lib/catalog/actions";
 import type { BookInput } from "@/lib/validation/book";
 
@@ -112,7 +113,13 @@ export function BookForm({
           </div>
           <div>
             <Label htmlFor="isbn">ISBN</Label>
-            <Input id="isbn" value={form.isbn} onChange={(e) => setForm((f) => ({ ...f, isbn: e.target.value }))} />
+            <div className="flex gap-2">
+              <Input id="isbn" value={form.isbn} onChange={(e) => setForm((f) => ({ ...f, isbn: e.target.value }))} />
+              <BarcodeScannerButton
+                label="Scan ISBN barcode"
+                onScan={(text) => setForm((f) => ({ ...f, isbn: text }))}
+              />
+            </div>
           </div>
           <div>
             <Label htmlFor="language">Language</Label>

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { deleteBook } from "@/lib/catalog/actions";
 import { resolveCoverUrl } from "@/lib/catalog/queries";
 import { formatCurrency, sanitizeSearchTerm } from "@/lib/utils";
+import { ProductSearchBar } from "./product-search-bar";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function primaryCoverUrl(book: any): string | null {
@@ -48,15 +49,7 @@ export default async function AdminProductsPage({
   return (
     <div>
       <AdminPageHeader title="Products" actionLabel="New Product" actionHref="/admin/products/new" />
-      <form className="mb-4">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Search by title, SKU, or ISBN..."
-          className="h-10 w-full max-w-sm rounded-md border border-input bg-background px-3 text-sm"
-        />
-      </form>
+      <ProductSearchBar defaultValue={q} />
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-secondary/50 text-left text-xs uppercase text-muted-foreground">
