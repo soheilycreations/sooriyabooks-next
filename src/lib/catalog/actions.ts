@@ -75,6 +75,11 @@ export async function createBook(input: BookInput): Promise<ActionResult<{ id: s
     book_id: book.id,
     quantity_on_hand: d.stockQuantity,
     low_stock_threshold: d.lowStockThreshold,
+    stock_tracking_enabled: d.trackStock,
+    // Only meaningful in untracked mode, but always true here — the whole
+    // point of leaving tracking off is that the book is available by
+    // default rather than defaulting to "Out of Stock" for no reason.
+    untracked_available: true,
   });
 
   const { data: auth } = await supabase.auth.getUser();
@@ -133,9 +138,13 @@ export async function updateBook(id: string, input: BookInput): Promise<ActionRe
     await supabase.from("book_categories").insert(d.categoryIds.map((categoryId) => ({ book_id: id, category_id: categoryId })));
   }
 
-  await supabase
-    .from("inventory")
-    .upsert({ book_id: id, quantity_on_hand: d.stockQuantity, low_stock_threshold: d.lowStockThreshold });
+  await supabase.from("inventory").upsert({
+    book_id: id,
+    quantity_on_hand: d.stockQuantity,
+    low_stock_threshold: d.lowStockThreshold,
+    stock_tracking_enabled: d.trackStock,
+    untracked_available: true,
+  });
 
   const { data: auth } = await supabase.auth.getUser();
   await logAudit({ actorId: auth.user!.id, action: "book.update", entityType: "book", entityId: id, before, after: d });

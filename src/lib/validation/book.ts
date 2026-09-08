@@ -26,6 +26,10 @@ export const bookSchema = z.object({
   isActive: z.boolean().default(true),
   seoTitle: z.string().optional().or(z.literal("")),
   seoDescription: z.string().optional().or(z.literal("")),
+  // Off by default — a new book shouldn't silently show "Out of Stock" just
+  // because staff didn't get around to typing a quantity. Staff can turn
+  // tracking on and set a real number whenever they actually want it.
+  trackStock: z.boolean().default(false),
   stockQuantity: z.coerce.number().int().nonnegative().default(0),
   lowStockThreshold: z.coerce.number().int().nonnegative().default(5),
 }).refine((data) => !data.discountPrice || data.discountPrice <= data.sellingPrice, {

@@ -21,7 +21,11 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         .select("id, media_id, sort_order, is_primary, media_assets ( storage_path )")
         .eq("book_id", id)
         .order("sort_order"),
-      supabase.from("inventory").select("quantity_on_hand, low_stock_threshold").eq("book_id", id).maybeSingle(),
+      supabase
+        .from("inventory")
+        .select("quantity_on_hand, low_stock_threshold, stock_tracking_enabled")
+        .eq("book_id", id)
+        .maybeSingle(),
     ]);
 
   if (!book) notFound();
@@ -71,6 +75,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           isActive: book.is_active,
           seoTitle: book.seo_title ?? "",
           seoDescription: book.seo_description ?? "",
+          trackStock: inventory?.stock_tracking_enabled ?? false,
           stockQuantity: inventory?.quantity_on_hand ?? 0,
           lowStockThreshold: inventory?.low_stock_threshold ?? 5,
         }}

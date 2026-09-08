@@ -57,6 +57,7 @@ export function BookForm({
     isActive: initial?.isActive ?? true,
     seoTitle: initial?.seoTitle ?? "",
     seoDescription: initial?.seoDescription ?? "",
+    trackStock: initial?.trackStock ?? false,
     stockQuantity: initial?.stockQuantity ?? 0,
     lowStockThreshold: initial?.lowStockThreshold ?? 5,
   });
@@ -232,24 +233,43 @@ export function BookForm({
               onChange={(e) => setForm((f) => ({ ...f, discountPrice: e.target.value ? Number(e.target.value) : null }))}
             />
           </div>
-          <div>
-            <Label htmlFor="stockQuantity">Stock quantity</Label>
-            <Input
-              id="stockQuantity"
-              type="number"
-              value={form.stockQuantity}
-              onChange={(e) => setForm((f) => ({ ...f, stockQuantity: Number(e.target.value) }))}
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-accent"
+              checked={form.trackStock}
+              onChange={(e) => setForm((f) => ({ ...f, trackStock: e.target.checked }))}
             />
-          </div>
-          <div>
-            <Label htmlFor="lowStockThreshold">Low stock alert threshold</Label>
-            <Input
-              id="lowStockThreshold"
-              type="number"
-              value={form.lowStockThreshold}
-              onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: Number(e.target.value) }))}
-            />
-          </div>
+            <span>
+              Track stock quantity for this book
+              <span className="block text-xs text-muted-foreground">
+                Off by default — the book shows as in stock either way. Turn this on only if you want to keep a
+                real count and have it go &quot;Out of Stock&quot; automatically at zero.
+              </span>
+            </span>
+          </label>
+          {form.trackStock && (
+            <>
+              <div>
+                <Label htmlFor="stockQuantity">Stock quantity</Label>
+                <Input
+                  id="stockQuantity"
+                  type="number"
+                  value={form.stockQuantity}
+                  onChange={(e) => setForm((f) => ({ ...f, stockQuantity: Number(e.target.value) }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="lowStockThreshold">Low stock alert threshold</Label>
+                <Input
+                  id="lowStockThreshold"
+                  type="number"
+                  value={form.lowStockThreshold}
+                  onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: Number(e.target.value) }))}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
