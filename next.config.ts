@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
+    serverActions: {
+      // Default is 1MB, which a real phone photo clears easily (uploadMedia()
+      // in lib/media/actions.ts already enforces the real 10MB ceiling
+      // itself) — Next.js was silently rejecting the request before our
+      // code ever ran, surfacing as an opaque "error occurred in the Server
+      // Components render" with no useful detail.
+      bodySizeLimit: "10mb",
+    },
   },
   async headers() {
     return [
@@ -30,7 +38,10 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // camera=(self), not camera=() — the admin barcode scanner
+          // (components/admin/barcode-scanner-button.tsx) needs camera
+          // access on this origin; camera=() blocked it site-wide entirely.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
         ],
       },
     ];
