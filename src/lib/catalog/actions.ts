@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/admin/audit";
 import { bookSchema, type BookInput } from "@/lib/validation/book";
 import { categorySchema, authorSchema, publisherSchema, type CategoryInput, type AuthorInput, type PublisherInput } from "@/lib/validation/taxonomy";
 import { sanitizeSearchTerm } from "@/lib/utils";
+import { resolveCoverUrl } from "@/lib/catalog/queries";
 import type { ActionResult } from "@/lib/auth/actions";
 
 // ---------------------------------------------------------------------
@@ -28,13 +29,19 @@ export interface AdminProductRow {
     stock_tracking_enabled: boolean;
     untracked_available: boolean;
   } | null;
-  book_images: { is_primary: boolean; sort_order: number; media_assets: { storage_path: string } | null }[];
+  coverUrl: string | null;
 }
 
 /**
  * Shared by the Products page's initial server render and its live,
- * type-to-search client bar (product-search-bar.tsx) — one query, not two
+ * type-to-search client bar (products-table.tsx) — one query, not two
  * copies that could drift. Same title/SKU/ISBN filter as before.
+ *
+ * Resolves each cover to a plain URL string here (server-side) rather than
+ * returning the raw book_images/media_assets relation — the client
+ * component that renders this can't import resolveCoverUrl itself without
+ * pulling in lib/supabase/server.ts's next/headers usage into the client
+ * bundle, which breaks the production build.
  */
 export async function searchAdminProducts(q?: string): Promise<AdminProductRow[]> {
   await requireStaff();
@@ -56,8 +63,30 @@ export async function searchAdminProducts(q?: string): Promise<AdminProductRow[]
   }
 
   const { data } = await query;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []) as any as AdminProductRow[];
+  return (data ?? []).map((row) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const book = row as any;
+    const images = (book.book_images ?? []) as Array<{
+      is_primary: boolean;
+      sort_order: number;
+      media_assets: { storage_path: string } | null;
+    }>;
+    const primary = [...images].sort(
+      (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+    )[0];
+    return {
+      id: book.id,
+      title: book.title,
+      sku: book.sku,
+      selling_price: book.selling_price,
+      discount_price: book.discount_price,
+      is_active: book.is_active,
+      is_featured: book.is_featured,
+      authors: book.authors,
+      inventory: book.inventory,
+      coverUrl: resolveCoverUrl(primary?.media_assets?.storage_path ?? null),
+    };
+  });
 }
 
 // The public catalog pages (home, search, every /category/[slug]) run on

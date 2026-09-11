@@ -8,16 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { BarcodeScannerButton } from "@/components/admin/barcode-scanner-button";
 import { deleteBook, searchAdminProducts, type AdminProductRow } from "@/lib/catalog/actions";
-import { resolveCoverUrl } from "@/lib/catalog/queries";
 import { formatCurrency } from "@/lib/utils";
-
-function primaryCoverUrl(book: AdminProductRow): string | null {
-  const images = book.book_images ?? [];
-  const primary = [...images].sort(
-    (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
-  )[0];
-  return resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
-}
 
 /**
  * Search box + results table as one live-search unit: typing debounces
@@ -100,7 +91,7 @@ export function ProductsTable({
             {books.map((book) => {
               const tracked = book.inventory?.stock_tracking_enabled ?? true;
               const stock = (book.inventory?.quantity_on_hand ?? 0) - (book.inventory?.quantity_reserved ?? 0);
-              const coverUrl = primaryCoverUrl(book);
+              const coverUrl = book.coverUrl;
               return (
                 <tr key={book.id} className="border-t">
                   <td className="px-4 py-3">
