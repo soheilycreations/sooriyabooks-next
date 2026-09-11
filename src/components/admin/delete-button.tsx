@@ -9,9 +9,14 @@ import type { ActionResult } from "@/lib/auth/actions";
 export function DeleteButton({
   action,
   confirmMessage = "Are you sure? This cannot be undone.",
+  onDeleted,
 }: {
   action: () => Promise<ActionResult>;
   confirmMessage?: string;
+  /** Called after a successful delete, in addition to router.refresh() — for
+   *  a list a parent owns as client state (e.g. a live-search result set)
+   *  that a server refresh alone wouldn't update. */
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -30,6 +35,7 @@ export function DeleteButton({
             window.alert(result.error);
             return;
           }
+          onDeleted?.();
           router.refresh();
         });
       }}

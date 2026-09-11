@@ -6,11 +6,59 @@ import { requireStaff } from "@/lib/auth/session";
 import { logAudit } from "@/lib/admin/audit";
 import { bookSchema, type BookInput } from "@/lib/validation/book";
 import { categorySchema, authorSchema, publisherSchema, type CategoryInput, type AuthorInput, type PublisherInput } from "@/lib/validation/taxonomy";
+import { sanitizeSearchTerm } from "@/lib/utils";
 import type { ActionResult } from "@/lib/auth/actions";
 
 // ---------------------------------------------------------------------
 // Books
 // ---------------------------------------------------------------------
+
+export interface AdminProductRow {
+  id: string;
+  title: string;
+  sku: string;
+  selling_price: number;
+  discount_price: number | null;
+  is_active: boolean;
+  is_featured: boolean;
+  authors: { name: string } | null;
+  inventory: {
+    quantity_on_hand: number;
+    quantity_reserved: number;
+    stock_tracking_enabled: boolean;
+    untracked_available: boolean;
+  } | null;
+  book_images: { is_primary: boolean; sort_order: number; media_assets: { storage_path: string } | null }[];
+}
+
+/**
+ * Shared by the Products page's initial server render and its live,
+ * type-to-search client bar (product-search-bar.tsx) — one query, not two
+ * copies that could drift. Same title/SKU/ISBN filter as before.
+ */
+export async function searchAdminProducts(q?: string): Promise<AdminProductRow[]> {
+  await requireStaff();
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("books")
+    .select(
+      `id, title, sku, selling_price, discount_price, is_active, is_featured,
+       authors ( name ), inventory ( quantity_on_hand, quantity_reserved, stock_tracking_enabled, untracked_available ),
+       book_images ( is_primary, sort_order, media_assets ( storage_path ) )`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (q) {
+    const term = sanitizeSearchTerm(q);
+    if (term) query = query.or(`title.ilike.%${term}%,sku.ilike.%${term}%,isbn.ilike.%${term}%`);
+  }
+
+  const { data } = await query;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []) as any as AdminProductRow[];
+}
 
 // The public catalog pages (home, search, every /category/[slug]) run on
 // ISR (`revalidate = 3600`) — without this, a book's category/new-arrival/
