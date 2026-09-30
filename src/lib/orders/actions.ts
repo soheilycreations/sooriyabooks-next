@@ -21,6 +21,15 @@ export async function createOrder(
   }
   const data = parsed.data;
 
+  // Temporary: COD and Direct Bank Transfer disabled site-wide, card payment
+  // (bank_ipg) only. Enforced here too, not just hidden in the UI, since a
+  // client could otherwise still submit "cod"/"bank_transfer" directly.
+  // Matches checkout-form.tsx's OTHER_PAYMENT_METHODS_ENABLED — flip both
+  // back together.
+  if (data.paymentMethod !== "bank_ipg") {
+    return { ok: false, error: "Cash on Delivery and Bank Transfer are temporarily unavailable. Please pay by card." };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -311,7 +320,9 @@ export async function createOrder(
   // before committing stock/updating status — see 0002_functions.sql —
   // because committing stock and updating `orders`/`order_status_history`
   // are staff-only operations under RLS otherwise.
-  if (data.paymentMethod === "cod") {
+  // Cast: unreachable while the payment-method guard above forces
+  // "bank_ipg", but kept so COD works immediately once that guard is lifted.
+  if ((data.paymentMethod as string) === "cod") {
     const { error: confirmError } = await supabase.rpc("confirm_cod_order", { p_order_id: order.id });
     if (confirmError) {
       return { ok: false, error: "Order created but could not be confirmed. Please contact support." };

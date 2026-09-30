@@ -22,6 +22,10 @@ import type { DistrictWithCities } from "@/lib/shipping/queries";
 const selectClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
+// Temporary: COD and Direct Bank Transfer disabled site-wide, card payment
+// (bank_ipg) only. Flip back to true to restore them.
+const OTHER_PAYMENT_METHODS_ENABLED = false;
+
 export function CheckoutForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,7 +35,9 @@ export function CheckoutForm() {
   const [districts, setDistricts] = useState<DistrictWithCities[]>([]);
   const [cityLabel, setCityLabel] = useState<string | null>(null);
   const [shippingRate, setShippingRate] = useState<number | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "bank_ipg" | "bank_transfer">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "bank_ipg" | "bank_transfer">(
+    OTHER_PAYMENT_METHODS_ENABLED ? "cod" : "bank_ipg",
+  );
   const [address, setAddress] = useState({
     recipientName: "",
     phone: "",
@@ -470,25 +476,27 @@ export function CheckoutForm() {
             <div className="h-px w-10 bg-accent" aria-hidden />
           </CardHeader>
           <CardContent className="space-y-3">
-            <label
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-colors",
-                paymentMethod === "cod" ? "border-accent bg-accent/5" : "hover:border-input",
-              )}
-            >
-              <input
-                type="radio"
-                name="paymentMethod"
-                className="accent-accent"
-                checked={paymentMethod === "cod"}
-                onChange={() => setPaymentMethod("cod")}
-              />
-              <Banknote className="h-6 w-6 shrink-0 text-accent" aria-hidden />
-              <div>
-                <p className="font-medium">Cash on Delivery</p>
-                <p className="text-sm text-muted-foreground">Pay when your order arrives</p>
-              </div>
-            </label>
+            {OTHER_PAYMENT_METHODS_ENABLED && (
+              <label
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-colors",
+                  paymentMethod === "cod" ? "border-accent bg-accent/5" : "hover:border-input",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  className="accent-accent"
+                  checked={paymentMethod === "cod"}
+                  onChange={() => setPaymentMethod("cod")}
+                />
+                <Banknote className="h-6 w-6 shrink-0 text-accent" aria-hidden />
+                <div>
+                  <p className="font-medium">Cash on Delivery</p>
+                  <p className="text-sm text-muted-foreground">Pay when your order arrives</p>
+                </div>
+              </label>
+            )}
             <label
               className={cn(
                 "flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-colors",
@@ -510,29 +518,31 @@ export function CheckoutForm() {
                 </p>
               </div>
             </label>
-            <label
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-colors",
-                paymentMethod === "bank_transfer" ? "border-accent bg-accent/5" : "hover:border-input",
-              )}
-            >
-              <input
-                type="radio"
-                name="paymentMethod"
-                className="accent-accent"
-                checked={paymentMethod === "bank_transfer"}
-                onChange={() => setPaymentMethod("bank_transfer")}
-              />
-              <Landmark className="h-6 w-6 shrink-0 text-accent" aria-hidden />
-              <div>
-                <p className="font-medium">Direct Bank Transfer</p>
-                <p className="text-sm text-muted-foreground">
-                  Transfer manually to our bank account, then send the payment slip
-                </p>
-              </div>
-            </label>
+            {OTHER_PAYMENT_METHODS_ENABLED && (
+              <label
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-colors",
+                  paymentMethod === "bank_transfer" ? "border-accent bg-accent/5" : "hover:border-input",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  className="accent-accent"
+                  checked={paymentMethod === "bank_transfer"}
+                  onChange={() => setPaymentMethod("bank_transfer")}
+                />
+                <Landmark className="h-6 w-6 shrink-0 text-accent" aria-hidden />
+                <div>
+                  <p className="font-medium">Direct Bank Transfer</p>
+                  <p className="text-sm text-muted-foreground">
+                    Transfer manually to our bank account, then send the payment slip
+                  </p>
+                </div>
+              </label>
+            )}
 
-            {paymentMethod === "bank_transfer" && (
+            {OTHER_PAYMENT_METHODS_ENABLED && paymentMethod === "bank_transfer" && (
               <div className="rounded-md border bg-secondary/40 p-4 text-sm">
                 <p className="text-muted-foreground">
                   Make your payment directly into our bank account, using your Order Number as the payment
