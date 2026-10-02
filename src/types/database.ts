@@ -1610,6 +1610,10 @@ export type Database = {
         Args: { p_book_id: string; p_order_id: string; p_quantity: number }
         Returns: undefined
       }
+      commit_stock_for_recovered_payment: {
+        Args: { p_book_id: string; p_order_id: string; p_quantity: number }
+        Returns: undefined
+      }
       confirm_cod_order: { Args: { p_order_id: string }; Returns: undefined }
       current_staff_role: {
         Args: never

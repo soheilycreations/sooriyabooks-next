@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, order_number, status, customer_id")
+    .select("id, order_number, status, payment_status, customer_id")
     .eq("id", transaction.order_id)
     .maybeSingle();
 
@@ -78,8 +78,32 @@ export async function POST(request: NextRequest) {
       // earlier meant a customer who abandoned or was declined at the
       // gateway still got an "Order Confirmed" email despite never paying.
       await sendOrderConfirmationEmail(order.id);
+    } else if (order.status === "failed") {
+      // A retried payment attempt succeeded after an earlier attempt
+      // declined. The decline already released this order's reservation
+      // and marked it "failed", so the customer was charged for an order
+      // that stayed failed. Reinstate it: the stock was released, so sell
+      // it straight from on-hand rather than committing a reservation.
+      const { data: items } = await supabase.from("order_items").select("book_id, quantity").eq("order_id", order.id);
+      for (const item of items ?? []) {
+        if (!item.book_id) continue;
+        await supabase.rpc("commit_stock_for_recovered_payment", {
+          p_book_id: item.book_id,
+          p_quantity: item.quantity,
+          p_order_id: order.id,
+        });
+      }
+      await supabase.from("orders").update({ status: "confirmed", payment_status: "paid" }).eq("id", order.id);
+      await supabase.from("order_status_history").insert({
+        order_id: order.id,
+        status: "confirmed",
+        note: "Payment confirmed via Bank IPG (retry after an earlier declined attempt)",
+      });
+      await sendOrderConfirmationEmail(order.id);
     }
-  } else {
+  } else if (order.payment_status !== "paid") {
+    // (An order another attempt already paid must never be flipped back
+    // to failed by a declined sibling attempt's callback.)
     // The stock reserved at checkout must be given back — otherwise a
     // declined/abandoned card payment permanently locks those units as
     // "reserved" with no order ever completing. Only on the first
