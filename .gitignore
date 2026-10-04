@@ -33,3 +33,8 @@ pnpm-debug.log*
 # supabase local
 supabase/.branches
 supabase/.temp
+
+# Cloudflare (OpenNext) build output
+.open-next
+.wrangler
+.dev.vars
