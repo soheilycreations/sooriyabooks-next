@@ -18,7 +18,13 @@ export async function verifyRecaptcha(token: string | null | undefined): Promise
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ secret, response: token }),
     });
-    const data = (await response.json()) as { success?: boolean };
+    const data = (await response.json()) as { success?: boolean; "error-codes"?: string[] };
+    if (data.success !== true) {
+      // e.g. "invalid-input-secret" (wrong RECAPTCHA_SECRET_KEY),
+      // "timeout-or-duplicate", "invalid-input-response". Without this a bad
+      // secret just looks like every visitor failing the check.
+      console.error("verifyRecaptcha: Google rejected the token:", (data["error-codes"] ?? []).join(", ") || "no error-codes returned");
+    }
     return data.success === true;
   } catch (err) {
     console.error("verifyRecaptcha: siteverify request failed:", err);
