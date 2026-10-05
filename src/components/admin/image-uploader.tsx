@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Upload, X, Loader2, Star, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadMedia } from "@/lib/media/actions";
+import { compressForUpload } from "@/lib/media/compress-client";
 import { MediaPickerDialog } from "./media-picker-dialog";
 
 export interface UploadedImage {
@@ -28,12 +29,15 @@ export function ImageUploader({
   onChange,
   multiple = true,
   showMediaPicker = true,
+  maxPx = 800,
 }: {
   images: UploadedImage[];
   onChange: (images: UploadedImage[]) => void;
   multiple?: boolean;
   /** Hide "Choose from Media" — e.g. on the Media Library page itself, where picking from the library while viewing it doesn't make sense. */
   showMediaPicker?: boolean;
+  /** Longest side images are shrunk to (in the browser, as WebP) before upload. 800 suits covers; full-width banners need more. */
+  maxPx?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // Deliberately a plain boolean, not useTransition()'s isPending: an
@@ -65,7 +69,7 @@ export function ImageUploader({
       for (const file of Array.from(files)) {
         try {
           const formData = new FormData();
-          formData.append("file", file);
+          formData.append("file", await compressForUpload(file, maxPx, maxPx > 1000 ? 0.82 : 0.78));
           const result = await uploadMedia(formData);
           if (!result.ok) {
             failures.push(`${file.name}: ${result.error}`);

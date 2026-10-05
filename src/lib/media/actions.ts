@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/session";
+import { mediaUrl } from "@/lib/media/url";
+import { putMedia, removeMediaObjects } from "@/lib/media/storage";
 import type { ActionResult } from "@/lib/auth/actions";
 
 export interface UploadedMedia {
@@ -10,14 +12,19 @@ export interface UploadedMedia {
   storagePath: string;
 }
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
+// The admin UI compresses images in the browser (src/lib/media/compress-client.ts)
+// before uploading, so a real upload is ~40-150 KB. This ceiling is the backstop
+// for when that step is skipped or fails (GIF/SVG pass through uncompressed).
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/webp": "webp",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
 
-function publicUrlFor(storagePath: string) {
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${storagePath}`;
-}
-
-/** Uploads a single image file (from a client-built FormData) to Supabase Storage + records it in media_assets. */
+/** Uploads a single image (from a client-built FormData) to R2 under a unique name + records it in media_assets. */
 export async function uploadMedia(formData: FormData): Promise<ActionResult<UploadedMedia>> {
   await requireStaff();
   const file = formData.get("file");
@@ -25,11 +32,12 @@ export async function uploadMedia(formData: FormData): Promise<ActionResult<Uplo
   if (!(file instanceof File)) {
     return { ok: false, error: "No file provided" };
   }
-  if (!ALLOWED_TYPES.has(file.type)) {
+  const ext = EXT_BY_TYPE[file.type];
+  if (!ext) {
     return { ok: false, error: "Unsupported file type — use JPEG, PNG, WebP, GIF, or SVG" };
   }
   if (file.size > MAX_FILE_BYTES) {
-    return { ok: false, error: "File is too large (max 10MB)" };
+    return { ok: false, error: "File is too large (max 2MB after compression)" };
   }
 
   const supabase = await createClient();
@@ -37,15 +45,13 @@ export async function uploadMedia(formData: FormData): Promise<ActionResult<Uplo
     data: { user },
   } = await supabase.auth.getUser();
 
-  const ext = file.name.split(".").pop() || "bin";
+  // Unique key, derived from the validated MIME type (never the client's filename).
   const storagePath = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage.from("media").upload(storagePath, file, {
-    contentType: file.type,
-    cacheControl: "31536000",
-  });
-  if (uploadError) {
-    return { ok: false, error: uploadError.message };
+  try {
+    await putMedia(storagePath, await file.arrayBuffer(), file.type);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Could not store the file" };
   }
 
   const { data: asset, error: dbError } = await supabase
@@ -60,11 +66,11 @@ export async function uploadMedia(formData: FormData): Promise<ActionResult<Uplo
     .single();
 
   if (dbError || !asset) {
-    await supabase.storage.from("media").remove([storagePath]);
+    await removeMediaObjects([storagePath]);
     return { ok: false, error: dbError?.message || "Could not save media record" };
   }
 
-  return { ok: true, data: { id: asset.id, url: publicUrlFor(storagePath), storagePath } };
+  return { ok: true, data: { id: asset.id, url: mediaUrl(storagePath), storagePath } };
 }
 
 export async function deleteMedia(id: string): Promise<ActionResult> {
@@ -73,9 +79,10 @@ export async function deleteMedia(id: string): Promise<ActionResult> {
   const { data: asset } = await supabase.from("media_assets").select("storage_path").eq("id", id).maybeSingle();
   if (!asset) return { ok: false, error: "Media not found" };
 
-  await supabase.storage.from("media").remove([asset.storage_path]);
+  // Row first: if the delete fails, the file must stay.
   const { error } = await supabase.from("media_assets").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await removeMediaObjects([asset.storage_path]);
   return { ok: true, data: undefined };
 }
 
@@ -87,5 +94,5 @@ export async function listMedia(limit = 60) {
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  return (data ?? []).map((m) => ({ id: m.id, url: publicUrlFor(m.storage_path), altText: m.alt_text, createdAt: m.created_at }));
+  return (data ?? []).map((m) => ({ id: m.id, url: mediaUrl(m.storage_path), altText: m.alt_text, createdAt: m.created_at }));
 }

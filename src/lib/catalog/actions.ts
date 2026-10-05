@@ -8,6 +8,7 @@ import { bookSchema, type BookInput } from "@/lib/validation/book";
 import { categorySchema, authorSchema, publisherSchema, type CategoryInput, type AuthorInput, type PublisherInput } from "@/lib/validation/taxonomy";
 import { sanitizeSearchTerm } from "@/lib/utils";
 import { resolveCoverUrl } from "@/lib/catalog/queries";
+import { deleteOrphanedMedia } from "@/lib/media/storage";
 import type { ActionResult } from "@/lib/auth/actions";
 
 // ---------------------------------------------------------------------
@@ -237,8 +238,11 @@ export async function deleteBook(id: string): Promise<ActionResult> {
   await requireStaff(["admin", "manager"]);
   const supabase = await createClient();
   const { data: before } = await supabase.from("books").select("*").eq("id", id).maybeSingle();
+  const { data: images } = await supabase.from("book_images").select("media_id").eq("book_id", id);
   const { error } = await supabase.from("books").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  // book_images cascades away with the book; clean up the images it leaves unused.
+  await deleteOrphanedMedia(supabase, (images ?? []).map((r) => r.media_id));
 
   const { data: auth } = await supabase.auth.getUser();
   await logAudit({ actorId: auth.user!.id, action: "book.delete", entityType: "book", entityId: id, before });
@@ -252,12 +256,19 @@ export async function deleteBook(id: string): Promise<ActionResult> {
 export async function setBookImages(bookId: string, mediaIds: string[]): Promise<ActionResult> {
   await requireStaff();
   const supabase = await createClient();
+  const { data: before } = await supabase.from("book_images").select("media_id").eq("book_id", bookId);
   await supabase.from("book_images").delete().eq("book_id", bookId);
   if (mediaIds.length > 0) {
-    await supabase.from("book_images").insert(
+    const { error } = await supabase.from("book_images").insert(
       mediaIds.map((mediaId, i) => ({ book_id: bookId, media_id: mediaId, is_primary: i === 0, sort_order: i })),
     );
+    // Don't clean anything up after a failed save — the old images are all we have.
+    if (error) return { ok: false, error: error.message };
   }
+  // Images this book no longer uses: delete them (row + R2 object) unless
+  // another book, slide or post still references them.
+  const dropped = (before ?? []).map((r) => r.media_id).filter((id) => !mediaIds.includes(id));
+  await deleteOrphanedMedia(supabase, dropped);
   revalidateTag("catalog");
   revalidatePath(`/admin/products/${bookId}`);
   revalidateStorefront();

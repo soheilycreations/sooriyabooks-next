@@ -1,4 +1,10 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+// Lets `next dev` read Cloudflare bindings (the MEDIA R2 bucket) through
+// getCloudflareContext(). In dev they are a local simulation, not the real
+// bucket. A no-op for builds and production.
+initOpenNextCloudflareForDev();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -12,6 +18,12 @@ const nextConfig: NextConfig = {
     // stop working.
     unoptimized: true,
     remotePatterns: [
+      // Media now lives in Cloudflare R2 (src/lib/media/url.ts); the Supabase
+      // pattern stays for any URL still pointing at the old bucket.
+      {
+        protocol: "https",
+        hostname: "media.sooriyabooks.lk",
+      },
       {
         protocol: "https",
         hostname: "*.supabase.co",

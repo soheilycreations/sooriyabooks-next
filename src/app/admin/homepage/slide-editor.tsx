@@ -57,7 +57,7 @@ function SlideCard({ slide, isFirst, isLast }: { slide: SlideData; isFirst: bool
       <CardContent className="grid gap-4 pt-6 sm:grid-cols-[160px_1fr]">
         <div>
           <Label>Image</Label>
-          <ImageUploader images={image} onChange={setImage} multiple={false} />
+          <ImageUploader images={image} onChange={setImage} multiple={false} maxPx={1920} />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
