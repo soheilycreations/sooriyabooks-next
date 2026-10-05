@@ -54,7 +54,11 @@ export async function trackGuestOrder(
 
   const row = data?.[0];
   if (!row) {
-    return { ok: false, error: "No matching order found. Check your order number and the phone number you used at checkout." };
+    return {
+      ok: false,
+      error:
+        "No matching order found. Check your order number and the phone number you used at checkout. If the order was sent as a gift, use the recipient's phone number.",
+    };
   }
 
   return {
