@@ -42,3 +42,25 @@ Objects get `Cache-Control: public, max-age=31536000, immutable` and
 
 Review the SQL and run it yourself in the Supabase SQL editor only after the
 objects are confirmed in R2. This tooling never writes to Supabase.
+
+## 3. Copy the non-product files (original format, same paths)
+
+Copies everything outside `products/` (the `2026/` admin uploads and
+`brochures/sooriya-catalogue.pdf`) from Supabase Storage to R2. Read-only
+against Supabase; Supabase credentials are read from the app's `.env.local`.
+The PDF gets a 1-hour cache (it is re-uploaded in place when updated); uuid-named
+files get a 1-year immutable cache.
+
+```bash
+node copy-extras.mjs --list    # preview, no R2 credentials needed
+node copy-extras.mjs
+```
+
+## 4. Verify
+
+Checks 5 random covers, the PDF and any `--path` you add return HTTP 200 from
+`https://media.sooriyabooks.lk`:
+
+```bash
+node verify.mjs
+```
