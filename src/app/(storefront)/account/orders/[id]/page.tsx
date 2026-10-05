@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
 import { BankTransferNotice } from "@/components/storefront/bank-transfer-notice";
-import { RetryPaymentButton } from "@/app/(storefront)/checkout/return/retry-payment-button";
+import { PaymentNotCompleted } from "@/components/storefront/payment-not-completed";
 import { resolveCoverUrl } from "@/lib/catalog/queries";
 
 const STATUS_STEPS = ["confirmed", "packed", "shipped", "delivered"] as const;
@@ -69,19 +68,11 @@ export default async function OrderDetailPage({
 
   return (
     <div>
-      {placed === "1" && order.status === "failed" ? (
-        <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 py-10 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
-            <AlertCircle className="h-7 w-7 text-destructive" />
-          </div>
-          <div>
-            <p className="font-heading text-2xl">Payment Failed</p>
-            <p className="mt-1 max-w-sm text-muted-foreground">
-              Order <span className="font-medium text-foreground">{order.order_number}</span> was saved, but the
-              payment was not completed. You have not been charged.
-            </p>
-          </div>
-        </div>
+      {order.status === "failed" ? (
+        <PaymentNotCompleted
+          orderNumber={order.order_number}
+          retryOrderId={order.payment_method === "bank_ipg" ? order.id : undefined}
+        />
       ) : (
         placed === "1" && (
           <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 py-10 text-center">
@@ -159,11 +150,6 @@ export default async function OrderDetailPage({
             </p>
           </div>
 
-          {order.status === "failed" && order.payment_method === "bank_ipg" && (
-            <div className="mt-4 max-w-xs">
-              <RetryPaymentButton orderId={order.id} />
-            </div>
-          )}
         </div>
 
         {address && (

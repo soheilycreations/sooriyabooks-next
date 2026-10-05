@@ -8,14 +8,18 @@ export default async function TrackOrderDetailPage({
   searchParams,
 }: {
   params: Promise<{ orderNumber: string }>;
-  searchParams: Promise<{ placed?: string }>;
+  searchParams: Promise<{ placed?: string; payment?: string }>;
 }) {
   const { orderNumber } = await params;
-  const { placed } = await searchParams;
+  const { placed, payment } = await searchParams;
 
   return (
     <div className="container max-w-2xl py-16 md:py-24">
-      <TrackOrderResult orderNumber={decodeURIComponent(orderNumber)} justPlaced={placed === "1"} />
+      <TrackOrderResult
+        orderNumber={decodeURIComponent(orderNumber)}
+        justPlaced={placed === "1"}
+        paymentFailed={payment === "failed"}
+      />
     </div>
   );
 }

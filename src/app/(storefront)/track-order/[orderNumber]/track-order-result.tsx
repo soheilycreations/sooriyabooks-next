@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCircle2, Package, AlertCircle } from "lucide-react";
+import { CheckCircle2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,13 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { FormAlert } from "@/components/shared/form-alert";
 import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
 import { BankTransferNotice } from "@/components/storefront/bank-transfer-notice";
-import { RetryPaymentButton } from "@/app/(storefront)/checkout/return/retry-payment-button";
+import { PaymentNotCompleted } from "@/components/storefront/payment-not-completed";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { trackGuestOrder, type GuestOrderDetails } from "@/lib/orders/guest-actions";
 
 const STATUS_STEPS = ["confirmed", "packed", "shipped", "delivered"] as const;
 
-export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: string; justPlaced: boolean }) {
+export function TrackOrderResult({
+  orderNumber,
+  justPlaced,
+  paymentFailed,
+}: {
+  orderNumber: string;
+  justPlaced: boolean;
+  /** The card payment was declined / failed (`?payment=failed`). Only a hint until the phone is verified: the real status wins once the order loads. */
+  paymentFailed: boolean;
+}) {
   const [phone, setPhone] = useState("");
   const [order, setOrder] = useState<GuestOrderDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,19 +48,11 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
     const currentStepIndex = STATUS_STEPS.indexOf(order.status as (typeof STATUS_STEPS)[number]);
     return (
       <div>
-        {justPlaced && order.status === "failed" ? (
-          <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
-              <AlertCircle className="h-7 w-7 text-destructive" />
-            </div>
-            <div>
-              <p className="font-heading text-2xl">Payment Failed</p>
-              <p className="mt-1 max-w-sm text-muted-foreground">
-                Order <span className="font-medium text-foreground">{order.orderNumber}</span> was saved, but the
-                payment was not completed. You have not been charged.
-              </p>
-            </div>
-          </div>
+        {order.status === "failed" ? (
+          <PaymentNotCompleted
+            orderNumber={order.orderNumber}
+            retryOrderId={order.paymentMethod === "bank_ipg" ? order.orderId : undefined}
+          />
         ) : (
           justPlaced && (
             <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 py-10 text-center">
@@ -132,11 +133,6 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
               </p>
             </div>
 
-            {order.status === "failed" && order.paymentMethod === "bank_ipg" && (
-              <div className="mt-4 max-w-xs">
-                <RetryPaymentButton orderId={order.orderId} />
-              </div>
-            )}
           </div>
 
           <div>
@@ -172,24 +168,32 @@ export function TrackOrderResult({ orderNumber, justPlaced }: { orderNumber: str
 
   return (
     <div>
-      {justPlaced && (
-        <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 py-10 text-center">
-          <CheckCircle2 className="h-10 w-10 text-accent" />
-          <div>
-            <p className="font-heading text-2xl">Order Placed</p>
-            <p className="mt-1 text-muted-foreground">
-              Thank you — order <span className="font-medium text-foreground">{orderNumber}</span> has been placed
-              successfully.
-            </p>
+      {paymentFailed ? (
+        <PaymentNotCompleted orderNumber={orderNumber}>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Enter your phone number below to open this order and try the payment again.
+          </p>
+        </PaymentNotCompleted>
+      ) : (
+        justPlaced && (
+          <div className="mb-8 flex flex-col items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 py-10 text-center">
+            <CheckCircle2 className="h-10 w-10 text-accent" />
+            <div>
+              <p className="font-heading text-2xl">Order Placed</p>
+              <p className="mt-1 text-muted-foreground">
+                Thank you — order <span className="font-medium text-foreground">{orderNumber}</span> has been placed
+                successfully.
+              </p>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       <div className="flex flex-col items-center gap-3 text-center">
         <Package className="h-8 w-8 text-muted-foreground" />
         <h1 className="font-heading text-2xl leading-tight">Order {orderNumber}</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Enter the phone number you used at checkout to view this order.
+          Enter the phone number you used at checkout to view this order (for a gift order, the recipient&apos;s number).
         </p>
       </div>
 

@@ -128,12 +128,20 @@ export async function POST(request: NextRequest) {
     await sendPaymentFailedEmail(order.id, result.errorMessage);
   }
 
+  // `?placed=1` means "show the green Order Placed banner" and must only ever
+  // follow a payment that really succeeded; a declined / failed card goes
+  // back with `?payment=failed` so the order page says so instead. An order
+  // another attempt already paid counts as success even if this callback was
+  // a declined sibling attempt (see the guard above that never flips it).
+  const succeeded = result.success || order.payment_status === "paid";
+  const outcome = succeeded ? "placed=1" : "payment=failed";
+
   // Guests have no /account/orders to redirect to — send them to the same
   // token-scoped tracking page used right after guest checkout (see
   // src/lib/orders/actions.ts).
   const destination = order.customer_id
-    ? `/account/orders/${order.id}?placed=1`
-    : `/track-order/${order.order_number}?placed=1`;
+    ? `/account/orders/${order.id}?${outcome}`
+    : `/track-order/${order.order_number}?${outcome}`;
 
   return NextResponse.redirect(new URL(destination, request.url), { status: 303 });
 }
