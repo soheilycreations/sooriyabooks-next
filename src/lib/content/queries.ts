@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { mediaUrl } from "@/lib/media/url";
+import { logQueryError } from "@/lib/catalog/queries";
 
 export interface HeroSlide {
   id: string;
@@ -13,16 +14,18 @@ export interface HeroSlide {
 /** Live hero slides: visible flag + inside the optional schedule window. */
 export async function getActiveHeroSlides(): Promise<HeroSlide[]> {
   const supabase = await createClient();
-  const { data: section } = await supabase.from("homepage_sections").select("id").eq("type", "hero_slider").maybeSingle();
+  const { data: section, error: sectionError } = await supabase.from("homepage_sections").select("id").eq("type", "hero_slider").maybeSingle();
+  logQueryError("getActiveHeroSlides (section)", sectionError);
   if (!section) return [];
 
   const nowIso = new Date().toISOString();
-  const { data: items } = await supabase
+  const { data: items, error: itemsError } = await supabase
     .from("homepage_section_items")
     .select("id, heading, subheading, button_text, link_url, starts_at, ends_at, media_assets ( storage_path )")
     .eq("section_id", section.id)
     .eq("is_visible", true)
     .order("sort_order");
+  logQueryError("getActiveHeroSlides", itemsError);
 
   return (items ?? [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -3,6 +3,7 @@ import { Truck, Headphones, ShieldCheck, Facebook, Instagram, Twitter, Youtube, 
 import { Logo } from "@/components/shared/logo";
 import { BackToTop } from "@/components/shared/back-to-top";
 import { selectNavCategories } from "@/lib/catalog/nav-categories";
+import { logQueryError } from "@/lib/catalog/queries";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteSettings } from "@/lib/settings/actions";
 import { cn, navLinkFocusClass } from "@/lib/utils";
@@ -12,7 +13,8 @@ import { cn, navLinkFocusClass } from "@/lib/utils";
 // never disagree about what the top categories are.
 async function getShopLinks() {
   const supabase = await createClient();
-  const { data } = await supabase.from("categories").select("name, slug").is("parent_id", null).order("sort_order").limit(20);
+  const { data, error } = await supabase.from("categories").select("name, slug").is("parent_id", null).order("sort_order").limit(20);
+  logQueryError("footer categories", error);
   const categories = selectNavCategories(data ?? [], 6);
   return [
     ...categories.map((c) => ({ href: `/category/${c.slug}`, label: c.name })),

@@ -23,6 +23,17 @@ export function resolveCoverUrl(storagePath: string | null): string | null {
   return storagePath ? mediaUrl(storagePath) : null;
 }
 
+/**
+ * Supabase returns query failures as `{ error }` rather than throwing, so a
+ * failed query used to look exactly like an empty result — a section just
+ * silently rendered nothing. On Cloudflare Workers that is how the "Too many
+ * subrequests" limit showed up. Logging here puts the real cause in the
+ * Workers logs.
+ */
+export function logQueryError(scope: string, error: { message: string } | null | undefined): void {
+  if (error) console.error(`[catalog] ${scope} failed: ${error.message}`);
+}
+
 /** Books for homepage/category/search grids. Returns [] gracefully if the catalog is empty (pre-migration). */
 export const BOOK_CARD_SELECT_WITH_STOCK = `id, title, slug, selling_price, discount_price, weight_grams, created_at,
        authors ( name ),
@@ -39,6 +50,7 @@ export async function getFeaturedBooks(limit = 8): Promise<BookCardData[]> {
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  logQueryError("getFeaturedBooks", error);
   if (error || !data) return [];
   if (data.length > 0) return data.map(mapBookRowToCard);
 
@@ -49,19 +61,20 @@ export async function getFeaturedBooks(limit = 8): Promise<BookCardData[]> {
   // is a data-completeness fallback, not fabricated content: every book
   // here is a genuine, active product; it stops applying the moment an
   // admin sets `is_featured` on anything.
-  const { data: fallback } = await supabase
+  const { data: fallback, error: fallbackError } = await supabase
     .from("books")
     .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .range(limit, limit * 2 - 1);
 
+  logQueryError("getFeaturedBooks (fallback)", fallbackError);
   return (fallback ?? []).map(mapBookRowToCard);
 }
 
 export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("books")
     .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
@@ -69,19 +82,21 @@ export async function getNewArrivals(limit = 8): Promise<BookCardData[]> {
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  logQueryError("getNewArrivals", error);
   if (data && data.length > 0) return data.map(mapBookRowToCard);
 
   // Same fallback rationale as getFeaturedBooks: no admin has flagged
   // `is_new_arrival` yet, so surface the most recently added active books —
   // which is literally what "new arrivals" means — instead of hiding the
   // section entirely.
-  const { data: fallback } = await supabase
+  const { data: fallback, error: fallbackError } = await supabase
     .from("books")
     .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  logQueryError("getNewArrivals (fallback)", fallbackError);
   return (fallback ?? []).map(mapBookRowToCard);
 }
 
@@ -93,48 +108,26 @@ export interface BookCoverTile {
 
 /**
  * A handful of real cover images for decorative mosaics (the homepage hero
- * fallback) — not a recommendation, just visual texture, so a cheap
- * random-offset page beats sorting the whole ~4,800-row table by random().
- * Only books with an actual uploaded cover are eligible (inner join).
+ * fallback) — not a recommendation, just visual texture. Only books with an
+ * actual uploaded cover are eligible.
  *
  * Restricted to the "Sooriya Books" imprint (that category plus its direct
  * sub-categories, e.g. "Translations") — the hero is meant to showcase our
  * own publications specifically, not the wider multi-publisher catalog.
+ *
+ * One request (the random_book_covers RPC, migration 0029) instead of four
+ * chained queries: every Supabase call counts against Cloudflare Workers'
+ * per-request subrequest limit.
  */
 export async function getRandomBookCovers(limit: number): Promise<BookCoverTile[]> {
   const supabase = await createClient();
-
-  const { data: parentCategory } = await supabase.from("categories").select("id").eq("slug", "sooriya-books").maybeSingle();
-  if (!parentCategory) return [];
-  const { data: childCategories } = await supabase.from("categories").select("id").eq("parent_id", parentCategory.id);
-  const categoryIds = [parentCategory.id, ...(childCategories ?? []).map((c) => c.id)];
-
-  const { data: bookCategoryRows } = await supabase.from("book_categories").select("book_id").in("category_id", categoryIds);
-  const bookIds = [...new Set((bookCategoryRows ?? []).map((r) => r.book_id))];
-  if (bookIds.length === 0) return [];
-
-  const offset = Math.floor(Math.random() * Math.max(1, bookIds.length - limit));
-  const pageIds = bookIds.slice(offset, offset + limit);
-
-  const { data } = await supabase
-    .from("books")
-    .select("id, title, book_images!inner ( is_primary, sort_order, media_assets ( storage_path ) )")
-    .eq("is_active", true)
-    .in("id", pageIds);
+  const { data, error } = await supabase.rpc("random_book_covers", { p_limit: limit, p_category_slug: "sooriya-books" });
+  logQueryError("getRandomBookCovers", error);
 
   return (data ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((row: any) => {
-      const images = (row.book_images ?? []) as Array<{
-        is_primary: boolean;
-        sort_order: number;
-        media_assets: { storage_path: string } | null;
-      }>;
-      const primary = [...images].sort(
-        (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
-      )[0];
-      const coverUrl = resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
-      return coverUrl ? { id: row.id as string, title: decodeHtmlEntities(row.title as string), coverUrl } : null;
+    .map((row) => {
+      const coverUrl = resolveCoverUrl(row.storage_path);
+      return coverUrl ? { id: row.id, title: decodeHtmlEntities(row.title), coverUrl } : null;
     })
     .filter((tile): tile is BookCoverTile => tile !== null);
 }
@@ -152,7 +145,7 @@ export async function searchBooksPreview(term: string, limit = 8): Promise<BookC
   if (!cleaned) return [];
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("books")
     .select(BOOK_CARD_SELECT_WITH_STOCK)
     .eq("is_active", true)
@@ -160,6 +153,7 @@ export async function searchBooksPreview(term: string, limit = 8): Promise<BookC
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  logQueryError("searchBooksPreview", error);
   return (data ?? []).map(mapBookRowToCard);
 }
 
@@ -197,11 +191,12 @@ export async function searchBooks(
 
   let categoryId: string | null = null;
   if (filters.categorySlug) {
-    const { data: category } = await supabase
+    const { data: category, error: categoryError } = await supabase
       .from("categories")
       .select("id")
       .eq("slug", filters.categorySlug)
       .maybeSingle();
+    logQueryError("searchBooks (category)", categoryError);
     if (!category) return { books: [], total: 0 }; // unknown slug — no matches, not an error
     categoryId = category.id;
   }
@@ -229,7 +224,8 @@ export async function searchBooks(
   // Base table must be `books` itself, not the book_categories join table —
   // .order(col, { foreignTable }) on a nested embed silently no-ops against
   // this project's PostgREST (see getBooksByCategory's identical note).
-  const { data, count } = await query.order(column, { ascending }).range(offset, offset + limit - 1);
+  const { data, count, error } = await query.order(column, { ascending }).range(offset, offset + limit - 1);
+  logQueryError("searchBooks", error);
 
   return { books: (data ?? []).map(mapBookRowToCard), total: count ?? 0 };
 }
@@ -239,11 +235,12 @@ export async function getBooksByCategory(
   { limit = 24, offset = 0, sort = "newest" }: { limit?: number; offset?: number; sort?: BookSort } = {},
 ): Promise<{ books: BookCardData[]; total: number }> {
   const supabase = await createClient();
-  const { data: category } = await supabase
+  const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
     .eq("slug", categorySlug)
     .maybeSingle();
+  logQueryError("getBooksByCategory (category)", categoryError);
 
   if (!category) return { books: [], total: 0 };
 
@@ -253,13 +250,14 @@ export async function getBooksByCategory(
   // ignored rather than erroring). Ordering the base table directly is
   // exactly how search's already-correct sort works.
   const { column, ascending } = SORT_COLUMN[sort];
-  const { data, count } = await supabase
+  const { data, count, error } = await supabase
     .from("books")
     .select(`${BOOK_CARD_SELECT_WITH_STOCK}, book_categories!inner ( category_id )`, { count: "exact" })
     .eq("is_active", true)
     .eq("book_categories.category_id", category.id)
     .order(column, { ascending })
     .range(offset, offset + limit - 1);
+  logQueryError("getBooksByCategory", error);
 
   const books = (data ?? []).map(mapBookRowToCard);
   return { books, total: count ?? books.length };
@@ -334,15 +332,17 @@ export async function getAllCategories() {
  */
 export async function getSooriyaBooksCategories(): Promise<NavCategory[]> {
   const supabase = await createClient();
-  const { data: parent } = await supabase.from("categories").select("id").eq("slug", "sooriya-books").maybeSingle();
+  const { data: parent, error: parentError } = await supabase.from("categories").select("id").eq("slug", "sooriya-books").maybeSingle();
+  logQueryError("getSooriyaBooksCategories (parent)", parentError);
   if (!parent) return [];
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("categories")
     .select("name, slug")
     .eq("parent_id", parent.id)
     .order("sort_order")
     .limit(60);
+  logQueryError("getSooriyaBooksCategories", error);
 
   return selectNavCategories(data ?? [], 40);
 }
@@ -352,14 +352,13 @@ export interface StoreStats {
   categoryCount: number;
 }
 
-/** Live counts for the brand-story section — never hardcode these, the catalog changes. */
+/** Live counts for the brand-story section — never hardcode these, the catalog changes. One request (store_stats RPC, migration 0029) instead of two. */
 export async function getStoreStats(): Promise<StoreStats> {
   const supabase = await createClient();
-  const [books, categories] = await Promise.all([
-    supabase.from("books").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("categories").select("id", { count: "exact", head: true }),
-  ]);
-  return { bookCount: books.count ?? 0, categoryCount: categories.count ?? 0 };
+  const { data, error } = await supabase.rpc("store_stats");
+  logQueryError("getStoreStats", error);
+  const row = data?.[0];
+  return { bookCount: Number(row?.book_count ?? 0), categoryCount: Number(row?.category_count ?? 0) };
 }
 
 export interface CategoryShelfEntry {
@@ -375,38 +374,6 @@ export interface CategoryShelfEntry {
   coverUrls: string[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getCategoryCoverUrls(supabase: any, categoryId: string, limit: number): Promise<string[]> {
-  // No .order() here on purpose: with book_categories as the base table,
-  // ordering by an embedded books.* column silently no-ops on this
-  // PostgREST version (see getBooksByCategory's comment for the same
-  // finding) — the base table itself has nothing meaningful to sort by,
-  // so this intentionally takes whatever the join returns first.
-  const { data } = await supabase
-    .from("book_categories")
-    .select(
-      `books!inner ( id, is_active, book_images ( is_primary, sort_order, media_assets ( storage_path ) ) )`,
-    )
-    .eq("category_id", categoryId)
-    .eq("books.is_active", true)
-    .limit(limit * 4); // overfetch — some books in the join have no image row
-
-  const urls: string[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const row of (data ?? []) as any[]) {
-    if (urls.length >= limit) break;
-    const images = (row.books?.book_images ?? []) as Array<{
-      is_primary: boolean;
-      sort_order: number;
-      media_assets: { storage_path: string } | null;
-    }>;
-    const primary = [...images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)[0];
-    const url = resolveCoverUrl(primary?.media_assets?.storage_path ?? null);
-    if (url) urls.push(url);
-  }
-  return urls;
-}
-
 /**
  * Top-level categories for the homepage "shelf" — real counts and real book
  * covers, no invented data. "Sooriya Books" (the publisher's own imprint) is
@@ -417,12 +384,13 @@ async function getCategoryCoverUrls(supabase: any, categoryId: string, limit: nu
  */
 export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntry[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error: categoriesError } = await supabase
     .from("categories")
     .select("id, name, slug, description, image_url")
     .is("parent_id", null)
     .order("sort_order")
     .limit(80);
+  logQueryError("getCategoryShelfData (categories)", categoriesError);
 
   const candidates = selectNavCategories(data ?? [], 40) as Array<{
     id: string;
@@ -432,17 +400,16 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
     image_url: string | null;
   }>;
 
-  const counts = await Promise.all(
-    candidates.map((c) =>
-      supabase
-        .from("book_categories")
-        .select("books!inner(id)", { count: "exact", head: true })
-        .eq("category_id", c.id)
-        .eq("books.is_active", true),
-    ),
-  );
+  // One request for every category's book count (category_book_counts RPC,
+  // migration 0029) — this used to be one COUNT query per category, ~40 in all,
+  // which alone blew through Cloudflare Workers' per-request subrequest limit.
+  const { data: countRows, error: countsError } = await supabase.rpc("category_book_counts", {
+    p_category_ids: candidates.map((c) => c.id),
+  });
+  logQueryError("getCategoryShelfData (counts)", countsError);
+  const countById = new Map((countRows ?? []).map((r) => [r.category_id, Number(r.book_count)]));
 
-  const withCounts = candidates.map((c, i) => ({ ...c, bookCount: counts[i]?.count ?? 0 }));
+  const withCounts = candidates.map((c) => ({ ...c, bookCount: countById.get(c.id) ?? 0 }));
   const byCountDesc = [...withCounts].sort((a, b) => b.bookCount - a.bookCount);
 
   const featuredIndex = withCounts.findIndex((c) => c.name.trim().toLowerCase() === "sooriya books");
@@ -454,7 +421,21 @@ export async function getCategoryShelfData(limit = 6): Promise<CategoryShelfEntr
   // Overfetch raw candidates per category, then dedupe globally in order
   // (featured tile first) so the same book's cover — a book can legitimately
   // sit in more than one category — never shows up in two different tiles.
-  const rawCovers = await Promise.all(ordered.map((c) => getCategoryCoverUrls(supabase, c.id, 8)));
+  // Likewise one request for all the tiles' covers instead of one per tile.
+  const { data: coverRows, error: coversError } = await supabase.rpc("category_cover_paths", {
+    p_category_ids: ordered.map((c) => c.id),
+    p_per_category: 8,
+  });
+  logQueryError("getCategoryShelfData (covers)", coversError);
+  const coversByCategory = new Map<string, string[]>();
+  for (const row of coverRows ?? []) {
+    const url = resolveCoverUrl(row.storage_path);
+    if (!url) continue;
+    const list = coversByCategory.get(row.category_id) ?? [];
+    list.push(url);
+    coversByCategory.set(row.category_id, list);
+  }
+  const rawCovers = ordered.map((c) => coversByCategory.get(c.id) ?? []);
   const usedUrls = new Set<string>();
   // Every tile (featured included) gets up to 6 covers so the card can
   // fill its full area edge-to-edge with a small grid of real covers

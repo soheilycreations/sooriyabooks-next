@@ -1606,6 +1606,20 @@ export type Database = {
           weight_band_id: string
         }[]
       }
+      category_book_counts: {
+        Args: { p_category_ids: string[] }
+        Returns: {
+          book_count: number
+          category_id: string
+        }[]
+      }
+      category_cover_paths: {
+        Args: { p_category_ids: string[]; p_per_category?: number }
+        Returns: {
+          category_id: string
+          storage_path: string
+        }[]
+      }
       commit_reserved_stock: {
         Args: { p_book_id: string; p_order_id: string; p_quantity: number }
         Returns: undefined
@@ -1653,6 +1667,14 @@ export type Database = {
           order_number: string
         }[]
       }
+      random_book_covers: {
+        Args: { p_category_slug?: string; p_limit?: number }
+        Returns: {
+          id: string
+          storage_path: string
+          title: string
+        }[]
+      }
       record_guest_payment_transaction: {
         Args: {
           p_amount: number
@@ -1675,6 +1697,13 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      store_stats: {
+        Args: never
+        Returns: {
+          book_count: number
+          category_count: number
+        }[]
+      }
       track_guest_order: {
         Args: { p_order_number: string; p_phone: string }
         Returns: {
