@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { BookForm } from "@/components/admin/book-form";
+import { mediaUrl } from "@/lib/media/url";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
@@ -37,9 +38,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((img: any) => ({
       mediaId: img.media_id as string,
-      url: img.media_assets?.storage_path
-        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${img.media_assets.storage_path}`
-        : "",
+      url: img.media_assets?.storage_path ? mediaUrl(img.media_assets.storage_path) : "",
     }))
     .filter((img) => img.url);
 

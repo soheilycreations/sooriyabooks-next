@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { selectNavCategories, type NavCategory } from "@/lib/catalog/nav-categories";
 import { decodeHtmlEntities, sanitizeSearchTerm } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media/url";
 
 export interface BookCardData {
   id: string;
@@ -19,10 +20,7 @@ export interface BookCardData {
 }
 
 export function resolveCoverUrl(storagePath: string | null): string | null {
-  if (!storagePath) return null;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return null;
-  return `${base}/storage/v1/object/public/media/${storagePath}`;
+  return storagePath ? mediaUrl(storagePath) : null;
 }
 
 /** Books for homepage/category/search grids. Returns [] gracefully if the catalog is empty (pre-migration). */

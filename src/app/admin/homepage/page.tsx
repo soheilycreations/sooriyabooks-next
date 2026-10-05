@@ -2,6 +2,7 @@ import { requireStaff } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { SlideEditor, type SlideData } from "./slide-editor";
+import { mediaUrl } from "@/lib/media/url";
 
 export default async function AdminHomepagePage() {
   await requireStaff();
@@ -27,9 +28,7 @@ export default async function AdminHomepagePage() {
         buttonText: i.button_text,
         linkUrl: i.link_url,
         imageMediaId: i.image_media_id,
-        imageUrl: i.media_assets?.storage_path
-          ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${i.media_assets.storage_path}`
-          : null,
+        imageUrl: i.media_assets?.storage_path ? mediaUrl(i.media_assets.storage_path) : null,
         isVisible: i.is_visible,
         startsAt: i.starts_at,
         endsAt: i.ends_at,

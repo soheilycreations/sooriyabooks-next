@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getOriginalPrices } from "./actions";
+import { mediaUrl, storagePathFromUrl } from "@/lib/media/url";
 
 export interface CartItem {
   bookId: string;
@@ -41,7 +42,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw));
+      if (raw) {
+        // A cart saved before the move to R2 holds the old Supabase image URL
+        // for each cover — re-point it at the current media host.
+        const saved = JSON.parse(raw) as CartItem[];
+        setItems(
+          saved.map((item) => {
+            const path = item.coverUrl ? storagePathFromUrl(item.coverUrl) : null;
+            return path ? { ...item, coverUrl: mediaUrl(path) } : item;
+          }),
+        );
+      }
     } catch {
       // corrupted local storage — start fresh rather than crash the app
     } finally {

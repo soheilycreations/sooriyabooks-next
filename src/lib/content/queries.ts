@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { mediaUrl } from "@/lib/media/url";
 
 export interface HeroSlide {
   id: string;
@@ -33,8 +34,6 @@ export async function getActiveHeroSlides(): Promise<HeroSlide[]> {
       subheading: i.subheading,
       buttonText: i.button_text,
       linkUrl: i.link_url,
-      imageUrl: i.media_assets?.storage_path
-        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${i.media_assets.storage_path}`
-        : null,
+      imageUrl: i.media_assets?.storage_path ? mediaUrl(i.media_assets.storage_path) : null,
     }));
 }

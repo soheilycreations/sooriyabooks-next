@@ -14,6 +14,7 @@ import { Reveal } from "@/components/storefront/reveal";
 import { isInWishlist, getWishlistBookIds } from "@/lib/customers/wishlist-actions";
 import { getBookReviews } from "@/lib/customers/review-queries";
 import { formatCurrency, decodeHtmlEntities, cn } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media/url";
 import { Badge } from "@/components/ui/badge";
 
 export const revalidate = 3600;
@@ -61,7 +62,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ slu
   const galleryImages = sorted
     .filter((img) => img.media_assets?.storage_path)
     .map((img) => ({
-      url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/${img.media_assets!.storage_path}`,
+      url: mediaUrl(img.media_assets!.storage_path),
       alt: img.media_assets?.alt_text || b.title,
     }));
 

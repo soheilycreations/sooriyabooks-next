@@ -5,14 +5,14 @@ import { createPortal } from "react-dom";
 import { BookOpen, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media/url";
 
 /**
- * Real catalogue PDF, hosted in the same Supabase Storage `media` bucket
- * every other real asset on this site uses (see src/lib/media/actions.ts's
- * publicUrlFor) — not bundled into the app itself, which would bloat the
- * repo and every deploy with a 50MB+ binary.
+ * Real catalogue PDF, hosted in the same media bucket (R2) every other real
+ * asset on this site uses (see src/lib/media/url.ts) — not bundled into the
+ * app itself, which would bloat the repo and every deploy with a 50MB+ binary.
  */
-const CATALOGUE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/media/brochures/sooriya-catalogue.pdf`;
+const CATALOGUE_URL = mediaUrl("brochures/sooriya-catalogue.pdf");
 
 /**
  * Opens the real catalogue in a book-framed modal — a native PDF viewer
