@@ -78,12 +78,16 @@ export async function POST(request: NextRequest) {
       // earlier meant a customer who abandoned or was declined at the
       // gateway still got an "Order Confirmed" email despite never paying.
       await sendOrderConfirmationEmail(order.id);
-    } else if (order.status === "failed") {
-      // A retried payment attempt succeeded after an earlier attempt
-      // declined. The decline already released this order's reservation
-      // and marked it "failed", so the customer was charged for an order
-      // that stayed failed. Reinstate it: the stock was released, so sell
-      // it straight from on-hand rather than committing a reservation.
+    } else if (order.status === "failed" || (order.status === "cancelled" && order.payment_status === "failed")) {
+      // A payment succeeded for an order that had already been written off:
+      //  - "failed": a retried attempt succeeded after an earlier attempt
+      //    declined; or
+      //  - "cancelled" with payment_status "failed": the order was auto-expired
+      //    after 60 minutes unpaid (supabase/migrations/0031) and the customer
+      //    finished paying on the bank's page afterwards.
+      // Either way the customer has been charged for an order that is not
+      // active. Reinstate it: the reservation was released, so sell straight
+      // from on-hand rather than committing a reservation.
       const { data: items } = await supabase.from("order_items").select("book_id, quantity").eq("order_id", order.id);
       for (const item of items ?? []) {
         if (!item.book_id) continue;
@@ -97,7 +101,10 @@ export async function POST(request: NextRequest) {
       await supabase.from("order_status_history").insert({
         order_id: order.id,
         status: "confirmed",
-        note: "Payment confirmed via Bank IPG (retry after an earlier declined attempt)",
+        note:
+          order.status === "cancelled"
+            ? "Payment confirmed via Bank IPG (completed after the order had expired unpaid)"
+            : "Payment confirmed via Bank IPG (retry after an earlier declined attempt)",
       });
       await sendOrderConfirmationEmail(order.id);
     }
