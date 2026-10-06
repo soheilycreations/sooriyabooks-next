@@ -2,6 +2,18 @@ import { AlertCircle } from "lucide-react";
 import { RetryPaymentButton } from "@/app/(storefront)/checkout/return/retry-payment-button";
 
 /**
+ * True when an order's card payment didn't go through: either it failed outright
+ * ("failed": declined, 3-D Secure failed), or it was auto-expired after sitting
+ * unpaid for 60 minutes (status "cancelled" with payment_status "failed", set by
+ * expire_unpaid_card_orders(), migration 0031). A "cancelled" order whose
+ * payment_status isn't "failed" was cancelled by staff and is not a payment
+ * problem. Shared so the guest and signed-in pages can never disagree.
+ */
+export function isPaymentNotCompleted(order: { status: string; paymentStatus: string }): boolean {
+  return order.status === "failed" || (order.status === "cancelled" && order.paymentStatus === "failed");
+}
+
+/**
  * Shown on an order page when the card payment didn't go through (declined,
  * 3-D Secure failed, abandoned). One component so the guest tracking page and
  * the signed-in order page can't drift apart in wording. Pass `retryOrderId`

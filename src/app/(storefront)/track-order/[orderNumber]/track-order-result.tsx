@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { FormAlert } from "@/components/shared/form-alert";
 import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
 import { BankTransferNotice } from "@/components/storefront/bank-transfer-notice";
-import { PaymentNotCompleted } from "@/components/storefront/payment-not-completed";
+import { PaymentNotCompleted, isPaymentNotCompleted } from "@/components/storefront/payment-not-completed";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { trackGuestOrder, type GuestOrderDetails } from "@/lib/orders/guest-actions";
 
@@ -48,7 +48,7 @@ export function TrackOrderResult({
     const currentStepIndex = STATUS_STEPS.indexOf(order.status as (typeof STATUS_STEPS)[number]);
     return (
       <div>
-        {order.status === "failed" ? (
+        {isPaymentNotCompleted(order) ? (
           <PaymentNotCompleted
             orderNumber={order.orderNumber}
             retryOrderId={order.paymentMethod === "bank_ipg" ? order.orderId : undefined}

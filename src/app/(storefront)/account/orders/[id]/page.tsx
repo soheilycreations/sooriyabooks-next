@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OrderPackAnimation } from "@/components/storefront/order-pack-animation";
 import { BankTransferNotice } from "@/components/storefront/bank-transfer-notice";
-import { PaymentNotCompleted } from "@/components/storefront/payment-not-completed";
+import { PaymentNotCompleted, isPaymentNotCompleted } from "@/components/storefront/payment-not-completed";
 import { resolveCoverUrl } from "@/lib/catalog/queries";
 
 const STATUS_STEPS = ["confirmed", "packed", "shipped", "delivered"] as const;
@@ -68,7 +68,7 @@ export default async function OrderDetailPage({
 
   return (
     <div>
-      {order.status === "failed" ? (
+      {isPaymentNotCompleted({ status: order.status, paymentStatus: order.payment_status }) ? (
         <PaymentNotCompleted
           orderNumber={order.order_number}
           retryOrderId={order.payment_method === "bank_ipg" ? order.id : undefined}
