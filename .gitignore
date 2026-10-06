@@ -38,3 +38,6 @@ supabase/.temp
 .open-next
 .wrangler
 .dev.vars
+
+# Any extra per-project env file (e.g. .env.projectA) - holds service-role keys, never commit
+.env.project*
