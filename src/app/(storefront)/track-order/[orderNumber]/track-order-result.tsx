@@ -74,6 +74,14 @@ export function TrackOrderResult({
           )
         )}
 
+        {order.orderNumber.trim().toLowerCase() !== orderNumber.trim().toLowerCase() && (
+          // The order was renumbered (see migration 0032) but its old number still finds it.
+          <p className="mb-6 rounded-md border bg-secondary/40 p-3 text-sm text-muted-foreground">
+            This order is now numbered <span className="font-medium text-foreground">{order.orderNumber}</span>. It was
+            previously <span className="font-medium text-foreground">{orderNumber}</span>, and that number still works.
+          </p>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-heading text-2xl leading-tight md:text-3xl">Order {order.orderNumber}</h1>
